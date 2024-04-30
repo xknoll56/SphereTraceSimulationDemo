@@ -22,10 +22,10 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-class D3D12HelloFrameBuffering : public DXSample
+class Renderer : public DXSample
 {
 public:
-    D3D12HelloFrameBuffering(UINT width, UINT height, std::wstring name);
+    Renderer(UINT width, UINT height, std::wstring name);
 
     virtual void OnInit();
     virtual void OnUpdate();
@@ -49,12 +49,11 @@ private:
         XMFLOAT4 color;
     };
 
-    struct SceneConstantBuffer
+    struct alignas(256) SceneConstantBuffer
     {
         XMFLOAT4 offset;
-        float padding[60]; // Padding so the constant buffer is 256-byte aligned.
     };
-    static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
+   // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;

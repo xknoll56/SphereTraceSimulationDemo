@@ -64,6 +64,9 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        pSample->OnUpdate();
+        pSample->OnRender();
     }
 
     pSample->OnDestroy();
@@ -104,8 +107,7 @@ LRESULT CALLBACK Win32Application::WindowProc(HWND hWnd, UINT message, WPARAM wP
     case WM_PAINT:
         if (pSample)
         {
-            pSample->OnUpdate();
-            pSample->OnRender();
+
         }
         return 0;
 
