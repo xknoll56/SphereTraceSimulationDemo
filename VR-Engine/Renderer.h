@@ -52,9 +52,11 @@ private:
         ST_Vector2 uv;
     };
 
+    //ST_Matrix4 mvp;
+
     struct alignas(256) SceneConstantBuffer
     {
-        ST_Vector4 offset;
+        ST_Matrix4 mvp;
     };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
@@ -87,6 +89,7 @@ private:
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValues[FrameCount];
+
 
     void LoadPipeline();
     void LoadAssets();

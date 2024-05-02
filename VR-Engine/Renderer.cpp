@@ -460,6 +460,12 @@ void Renderer::LoadAssets()
         // complete before continuing.
         WaitForGpu();
     }
+
+    ST_Matrix4 model = gMatrix4Identity;
+    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(0.5, 0.5, 0.5), gVector3Zero, gVector3Up);
+    ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.85f, 0.1f, 1000.0f);
+    
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
 }
 
 // Generate a simple black and white checkerboard texture.
@@ -503,14 +509,14 @@ std::vector<UINT8> Renderer::GenerateTextureData()
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
-    const float translationSpeed = 0.005f;
-    const float offsetBounds = 1.25f;
+    //const float translationSpeed = 0.005f;
+    //const float offsetBounds = 1.25f;
 
-    m_constantBufferData.offset.x += translationSpeed;
-    if (m_constantBufferData.offset.x > offsetBounds)
-    {
-        m_constantBufferData.offset.x = -offsetBounds;
-    }
+    //m_constantBufferData.offset.x += translationSpeed;
+    //if (m_constantBufferData.offset.x > offsetBounds)
+    //{
+    //    m_constantBufferData.offset.x = -offsetBounds;
+    //}
     memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
 }
 

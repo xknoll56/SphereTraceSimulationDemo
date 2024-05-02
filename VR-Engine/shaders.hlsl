@@ -11,8 +11,7 @@
 
 cbuffer SceneConstantBuffer : register(b0)
 {
-    float4 offset;
-    float4 padding[15];
+    float4x4 mvp;
 };
 
 struct PSInput
@@ -28,7 +27,7 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 {
     PSInput result;
 
-    result.position = position + offset;
+    result.position = mul(position, mvp);
     result.uv = uv;
 
     return result;
