@@ -30,3 +30,7 @@
 #include <string>
 #include <wrl.h>
 #include <shellapi.h>
+
+extern "C" {
+#include "SphereTracePhysicsEngine/src/SphereTrace.h"
+}

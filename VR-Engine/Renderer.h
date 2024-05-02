@@ -48,13 +48,13 @@ private:
 
     struct Vertex
     {
-        XMFLOAT3 position;
-        XMFLOAT2 uv;
+        ST_Vector3 position;
+        ST_Vector2 uv;
     };
 
     struct alignas(256) SceneConstantBuffer
     {
-        XMFLOAT4 offset;
+        ST_Vector4 offset;
     };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
