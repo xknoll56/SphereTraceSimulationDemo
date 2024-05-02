@@ -313,9 +313,9 @@ void Renderer::LoadAssets()
         // Define the geometry for a triangle.
         Vertex triangleVertices[] =
         {
-            { { 0.0f, 0.25f * m_aspectRatio, 0.0f }, { 0.5f, 0.0f } },
-            { { 0.25f, -0.25f * m_aspectRatio, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f } }
+            { { 0.0f, 1.0f, 0.0f }, { 0.5f, 0.0f } },
+            { { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
+            { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }
         };
 
         const UINT vertexBufferSize = sizeof(triangleVertices);
@@ -462,7 +462,7 @@ void Renderer::LoadAssets()
     }
 
     ST_Matrix4 model = gMatrix4Identity;
-    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(0.5, 0.5, 0.5), gVector3Zero, gVector3Up);
+    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(1,1,1), gVector3Zero, gVector3Up);
     ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.85f, 0.1f, 1000.0f);
     
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
