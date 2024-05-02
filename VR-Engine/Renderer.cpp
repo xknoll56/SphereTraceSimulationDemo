@@ -275,7 +275,8 @@ void Renderer::LoadAssets()
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
         //D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
         //{
@@ -313,9 +314,53 @@ void Renderer::LoadAssets()
         // Define the geometry for a triangle.
         Vertex triangleVertices[] =
         {
-            { { 0.0f, 1.0f, 0.0f }, { 0.5f, 0.0f } },
-            { { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }
+            //back face
+            -0.5f, -0.5f,-0.5f, 0.0f, 0.0f, -1, 0.0f, 0.0f,
+            -0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 1.0f,
+            0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
+            -0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 0.0f,
+            0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
+            0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 0.0f,
+
+            //right face
+            0.5f, -0.5f,-0.5f, 1, 0, 0, 0.0f, 0.0f,
+            0.5f, 0.5f,-0.5f,1, 0, 0, 0.0f, 1.0f,
+            0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
+            0.5f, -0.5f,-0.5f,1, 0, 0, 0.0f, 0.0f,
+            0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
+            0.5f, -0.5f,0.5f,1, 0, 0, 1.0f, 0.0f,
+
+            //front face
+            -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
+            0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
+            -0.5f, 0.5f,0.5f,0,0,1, 0.0f, 1.0f,
+            -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
+            0.5f, -0.5f,0.5f,0,0,1, 1.0f, 0.0f,
+            0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
+
+            //left face
+            -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
+            -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
+            -0.5f, 0.5f,-0.5f,-1,0,0, 0.0f, 1.0f,
+            -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
+            -0.5f, -0.5f,0.5f,-1,0,0, 1.0f, 0.0f,
+            -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
+
+            //top face
+            -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
+            0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
+            -0.5f, 0.5f,-0.5f,0,1,0, 0.0f, 1.0f,
+            -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
+            0.5f, 0.5f,0.5f,0,1,0, 1.0f, 0.0f,
+            0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
+
+            //bottom face
+            -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
+            -0.5f, -0.5f,-0.5f,0,-1,0, 0.0f, 1.0f,
+            0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
+            -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
+            0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
+            0.5f, -0.5f,0.5f,0,-1,0, 1.0f, 0.0f,
         };
 
         const UINT vertexBufferSize = sizeof(triangleVertices);
@@ -582,7 +627,7 @@ void Renderer::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3, 1, 0, 0);
+    m_commandList->DrawInstanced(36, 1, 0, 0);
 
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

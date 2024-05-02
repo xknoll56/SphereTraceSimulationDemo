@@ -49,6 +49,7 @@ private:
     struct Vertex
     {
         ST_Vector3 position;
+        ST_Vector3 normal;
         ST_Vector2 uv;
     };
 
