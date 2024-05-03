@@ -431,8 +431,8 @@ void Renderer::LoadAssets()
         D3D12_RESOURCE_DESC textureDesc = {};
         textureDesc.MipLevels = 1;
         textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        textureDesc.Width = TextureWidth;
-        textureDesc.Height = TextureHeight;
+        textureDesc.Width = 2;
+        textureDesc.Height = 2;
         textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
         textureDesc.DepthOrArraySize = 1;
         textureDesc.SampleDesc.Count = 1;
@@ -463,12 +463,17 @@ void Renderer::LoadAssets()
 
         // Copy data to the intermediate upload heap and then schedule a copy 
         // from the upload heap to the Texture2D.
-        std::vector<UINT8> texture = GenerateTextureData();
+        std::vector<UINT8> texture = {
+            255, 255, 255, 255,
+            0,  0, 0, 255,
+            0, 0, 0, 255,
+            255, 255, 255, 255
+        };
 
         D3D12_SUBRESOURCE_DATA textureData = {};
         textureData.pData = &texture[0];
-        textureData.RowPitch = TextureWidth * TexturePixelSize;
-        textureData.SlicePitch = textureData.RowPitch * TextureHeight;
+        textureData.RowPitch = 2 * 4;
+        textureData.SlicePitch = textureData.RowPitch * 2;
 
         UpdateSubresources(m_commandList.Get(), m_texture.Get(), textureUploadHeap.Get(), 0, 0, 1, &textureData);
         CD3DX12_RESOURCE_BARRIER resourceBarrier  = CD3DX12_RESOURCE_BARRIER::Transition(m_texture.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -511,43 +516,6 @@ void Renderer::LoadAssets()
     ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.85f, 0.1f, 1000.0f);
     
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-}
-
-// Generate a simple black and white checkerboard texture.
-std::vector<UINT8> Renderer::GenerateTextureData()
-{
-    const UINT rowPitch = TextureWidth * TexturePixelSize;
-    const UINT cellPitch = rowPitch >> 3;        // The width of a cell in the checkboard texture.
-    const UINT cellHeight = TextureWidth >> 3;    // The height of a cell in the checkerboard texture.
-    const UINT textureSize = rowPitch * TextureHeight;
-
-    std::vector<UINT8> data(textureSize);
-    UINT8* pData = &data[0];
-
-    for (UINT n = 0; n < textureSize; n += TexturePixelSize)
-    {
-        UINT x = n % rowPitch;
-        UINT y = n / rowPitch;
-        UINT i = x / cellPitch;
-        UINT j = y / cellHeight;
-
-        if (i % 2 == j % 2)
-        {
-            pData[n] = 0x00;        // R
-            pData[n + 1] = 0x00;    // G
-            pData[n + 2] = 0x00;    // B
-            pData[n + 3] = 0xff;    // A
-        }
-        else
-        {
-            pData[n] = 0xff;        // R
-            pData[n + 1] = 0xff;    // G
-            pData[n + 2] = 0xff;    // B
-            pData[n + 3] = 0xff;    // A
-        }
-    }
-
-    return data;
 }
 
 
