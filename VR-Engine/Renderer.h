@@ -58,6 +58,101 @@ struct RootSigniture
     }
 };
 
+struct Pipeline
+{
+    ID3D12PipelineState* pPipelineState;
+
+    void init(ID3D12Device* pDevice, RootSigniture& rootSigniture, LPCWSTR vertexShaderPath, LPCWSTR pixelShaderPath,
+        D3D12_INPUT_ELEMENT_DESC* inputElementDescs, UINT inputElementSize)
+    {
+        ComPtr<ID3DBlob> vertexShader;
+        ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+        // Enable better shader debugging with the graphics debugging tools.
+        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+        UINT compileFlags = 0;
+#endif
+
+        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)vertexShaderPath, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)pixelShaderPath, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+
+        // Describe and create the graphics pipeline state object (PSO).
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.InputLayout = { inputElementDescs, inputElementSize };
+        psoDesc.pRootSignature = rootSigniture.pRootSigniture;
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
+        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        CD3DX12_DEPTH_STENCIL_DESC1 depthDesc(D3D12_DEFAULT);
+        psoDesc.DepthStencilState = depthDesc;
+        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 1;
+        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+        psoDesc.SampleDesc.Count = 1;
+
+        ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pPipelineState)));
+    }
+
+};
+
+struct Vertex
+{
+    ST_Vector3 position;
+    ST_Vector3 normal;
+    ST_Vector2 uv;
+};
+
+
+struct VertexBuffer
+{
+    ID3D12Resource* m_vertexBuffer;
+    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+    UINT numVerts;
+
+    void init(ID3D12Device* pDevice, float* triangleVertices, UINT sizeofVerts, UINT stride)
+    {
+        // Note: using upload heaps to transfer static data like vert buffers is not 
+        // recommended. Every time the GPU needs it, the upload heap will be marshalled 
+        // over. Please read up on Default Heap usage. An upload heap is used here for 
+        // code simplicity and because there are very few verts to actually transfer.
+        CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeofVerts);
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &heapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&m_vertexBuffer)));
+
+        // Copy the triangle data to the vertex buffer.
+        UINT8* pVertexDataBegin;
+        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
+        ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
+        memcpy(pVertexDataBegin, triangleVertices, sizeofVerts);
+        m_vertexBuffer->Unmap(0, nullptr);
+
+        // Initialize the vertex buffer view.
+        m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+        m_vertexBufferView.StrideInBytes = stride;
+        m_vertexBufferView.SizeInBytes = sizeofVerts;
+        this->numVerts = sizeofVerts / stride;
+    }
+
+
+    void draw(ID3D12GraphicsCommandList* pCommandList)
+    {
+        pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+        pCommandList->DrawInstanced(numVerts, 1, 0, 0);
+    }
+};
+
 class Renderer : public DXSample
 {
 public:
@@ -82,12 +177,6 @@ private:
     static const UINT TextureHeight = 256;
     static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
 
-    struct Vertex
-    {
-        ST_Vector3 position;
-        ST_Vector3 normal;
-        ST_Vector2 uv;
-    };
 
     //ST_Matrix4 mvp;
 
@@ -111,18 +200,19 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    ComPtr<ID3D12PipelineState> m_pipelineState;
+    //ComPtr<ID3D12PipelineState> m_pipelineState;
+    Pipeline mPipeline;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
 
     // App resources.
-    ComPtr<ID3D12Resource> m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
+
     ComPtr<ID3D12Resource> m_constantBuffer;
     SceneConstantBuffer m_constantBufferData;
     UINT8* m_pCbvDataBegin;
     ComPtr<ID3D12Resource> m_texture;
     ComPtr<ID3D12Resource> m_depthStencil;
+    VertexBuffer mCubeVB;
 
     // Synchronization objects.
     UINT m_frameIndex;
