@@ -73,6 +73,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+    ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     ComPtr<ID3D12PipelineState> m_pipelineState;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
@@ -84,6 +85,7 @@ private:
     SceneConstantBuffer m_constantBufferData;
     UINT8* m_pCbvDataBegin;
     ComPtr<ID3D12Resource> m_texture;
+    ComPtr<ID3D12Resource> m_depthStencil;
 
     // Synchronization objects.
     UINT m_frameIndex;
@@ -95,7 +97,6 @@ private:
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();
-    std::vector<UINT8> GenerateTextureData();
     void MoveToNextFrame();
     void WaitForGpu();
 };
