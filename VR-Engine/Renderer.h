@@ -22,6 +22,42 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
+
+struct RootSigniture
+{
+    ID3D12RootSignature* pRootSigniture;
+    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData;
+
+    RootSigniture()
+    {
+        // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+    }
+
+    ~RootSigniture()
+    {
+        pRootSigniture->Release();
+    }
+
+
+    void init(ID3D12Device* pDevice, CD3DX12_ROOT_PARAMETER1* rootParameters, UINT numRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags, D3D12_STATIC_SAMPLER_DESC samplerDesc)
+    {
+
+        if (FAILED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+        {
+            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+        }
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        rootSignatureDesc.Init_1_1(numRootParameters, rootParameters, 1, &samplerDesc, flags);
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
+        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&pRootSigniture)));
+    }
+};
+
 class Renderer : public DXSample
 {
 public:
@@ -69,7 +105,8 @@ private:
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
     ComPtr<ID3D12CommandQueue> m_commandQueue;
-    ComPtr<ID3D12RootSignature> m_rootSignature;
+    //ComPtr<ID3D12RootSignature> m_rootSignature;
+    RootSigniture mRootSigniture;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     ComPtr<ID3D12DescriptorHeap> m_srvHeap;
