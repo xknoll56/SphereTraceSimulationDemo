@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="SphereTrace">
+      <UniqueIdentifier>{22ac887c-05e6-450b-9cca-2405edfb2858}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp">
@@ -29,6 +32,57 @@
     </ClCompile>
     <ClCompile Include="Win32Application.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceTag.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTrace.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceAI.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceAllocator.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceCollider.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderBox.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderExperimental.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderPlane.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderSphere.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderTerrain.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderTriangle.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceHashTable.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceLists.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceMaterial.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceMath.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceRigidBody.c">
+      <Filter>SphereTrace</Filter>
+    </ClCompile>
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.c">
+      <Filter>SphereTrace</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -49,6 +103,60 @@
     </ClInclude>
     <ClInclude Include="d3dx12.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTrace.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceAI.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceAllocator.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceCollider.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderBox.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderExperimental.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderPlane.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderSphere.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderTerrain.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderTriangle.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceGlobals.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceHashTable.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceLists.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceMaterial.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceMath.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceRigidBody.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.h">
+      <Filter>SphereTrace</Filter>
+    </ClInclude>
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceTag.h">
+      <Filter>SphereTrace</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
