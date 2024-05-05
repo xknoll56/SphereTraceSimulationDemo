@@ -117,14 +117,7 @@ void Renderer::LoadPipeline()
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
 
-        // Describe and create a constant buffer view (CBV) descriptor heap.
-        // Flags indicate that this descriptor heap can be bound to the pipeline 
-        // and that descriptors contained in it can be referenced by a root table.
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = 1;
-        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+
 
         // Describe and create a shader resource view (SRV) heap for the texture.
         D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -284,32 +277,8 @@ void Renderer::LoadAssets()
         mCubeVB.init(m_device.Get(), (float*)triangleVertices, sizeof(triangleVertices), sizeof(Vertex));
     }
 
-    // Create the constant buffer.
-    {
-        const UINT constantBufferSize = sizeof(SceneConstantBuffer);    // CB size is required to be 256-byte aligned.
-
-        CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &heapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_constantBuffer)));
-
-        // Describe and create a constant buffer view.
-        D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-        cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-        cbvDesc.SizeInBytes = constantBufferSize;
-        m_device->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
-
-        // Map and initialize the constant buffer. We don't unmap this until the
-        // app closes. Keeping things mapped for the lifetime of the resource is okay.
-        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-        ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-        memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
-    }
+    //create constant buffer
+    mConstantBufferAccessor.init(m_device.Get(), &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 // the command list that references it has finished executing on the GPU.
@@ -451,7 +420,8 @@ void Renderer::OnUpdate()
     //{
     //    m_constantBufferData.offset.x = -offsetBounds;
     //}
-    memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+    //memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
+    mConstantBufferAccessor.updateConstantBufferData(&m_constantBufferData);
 }
 
 // Render the scene.
@@ -494,10 +464,9 @@ void Renderer::PopulateCommandList()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
 
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get() };
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-    m_commandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
-    ppHeaps[0] = m_srvHeap.Get();
+    mConstantBufferAccessor.bind(m_commandList.Get());
+    ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get()};
+    int c = _countof(ppHeaps);
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
     m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
