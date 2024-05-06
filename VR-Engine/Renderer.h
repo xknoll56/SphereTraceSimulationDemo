@@ -155,21 +155,15 @@ struct VertexBuffer
 
 struct ConstantBufferAccessor
 {
-    ID3D12DescriptorHeap* m_cbvHeap;
+    
     ID3D12Resource* m_constantBuffer;
     UINT8* m_pCbvDataBegin;
     UINT mSizeofConstantBufferData;
+    UINT accessorIndex;
+    static UINT numAccessors;
 
-    void init(ID3D12Device* pDevice, void* pConstantBufferData, UINT sizeofConstantBufferData)
+    void init(ID3D12Device* pDevice, ID3D12DescriptorHeap* m_cbvHeap, void* pConstantBufferData, UINT sizeofConstantBufferData)
     {
-        // Describe and create a constant buffer view (CBV) descriptor heap.
-        // Flags indicate that this descriptor heap can be bound to the pipeline 
-        // and that descriptors contained in it can be referenced by a root table.
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = 1;
-        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        ThrowIfFailed(pDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
         // Create the constant buffer.
         {
@@ -189,7 +183,11 @@ struct ConstantBufferAccessor
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
             cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
             cbvDesc.SizeInBytes = mSizeofConstantBufferData;
-            pDevice->CreateConstantBufferView(&cbvDesc, m_cbvHeap->GetCPUDescriptorHandleForHeapStart());
+            D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
+            handle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)*numAccessors;
+            accessorIndex = numAccessors;
+            numAccessors++;
+            pDevice->CreateConstantBufferView(&cbvDesc, handle);
 
             // Map and initialize the constant buffer. We don't unmap this until the
             // app closes. Keeping things mapped for the lifetime of the resource is okay.
@@ -204,13 +202,35 @@ struct ConstantBufferAccessor
         memcpy(m_pCbvDataBegin, pConstantBufferData, mSizeofConstantBufferData);
     }
 
-    void bind(ID3D12GraphicsCommandList* pCommandList)
+    void bind(ID3D12GraphicsCommandList* pCommandList, ID3D12Device* pDevice, ID3D12DescriptorHeap* m_cbvHeap)
     {
         ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap };
         pCommandList->SetDescriptorHeaps(1, ppHeaps);
-        pCommandList->SetGraphicsRootDescriptorTable(0, m_cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        pCommandList->SetGraphicsRootDescriptorTable(0, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), 
+            pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)*accessorIndex));
     }
 };
+
+struct Timer 
+{
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+
+    void Init() 
+    {
+        QueryPerformanceFrequency(&frequency);
+        QueryPerformanceCounter(&start);
+    }
+
+    double GetElapsedTimeInSeconds() 
+    {
+        LARGE_INTEGER end;
+        QueryPerformanceCounter(&end);
+        return static_cast<double>(end.QuadPart - start.QuadPart) / frequency.QuadPart;
+    }
+};
+
+
 
 class Renderer : public DXSample
 {
@@ -257,6 +277,7 @@ private:
     RootSigniture mRootSigniture;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+
     ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     //ComPtr<ID3D12PipelineState> m_pipelineState;
@@ -272,7 +293,7 @@ private:
     ComPtr<ID3D12Resource> m_texture;
     ComPtr<ID3D12Resource> m_depthStencil;
     VertexBuffer mCubeVB;
-    ConstantBufferAccessor mConstantBufferAccessor;
+    ConstantBufferAccessor mConstantBufferAccessors[500];
 
     // Synchronization objects.
     UINT m_frameIndex;
@@ -280,6 +301,7 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValues[FrameCount];
 
+    Timer timer;
 
     void LoadPipeline();
     void LoadAssets();

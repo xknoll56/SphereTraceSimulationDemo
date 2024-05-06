@@ -12,6 +12,9 @@
 #include "stdafx.h"
 #include "Renderer.h"
 
+UINT ConstantBufferAccessor::numAccessors = 0;
+
+
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
     m_frameIndex(0),
@@ -117,7 +120,14 @@ void Renderer::LoadPipeline()
         ThrowIfFailed(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)));
 
 
-
+        // Describe and create a constant buffer view (CBV) descriptor heap.
+        // Flags indicate that this descriptor heap can be bound to the pipeline 
+        // and that descriptors contained in it can be referenced by a root table.
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.NumDescriptors = 1000;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
         // Describe and create a shader resource view (SRV) heap for the texture.
         D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -150,6 +160,8 @@ void Renderer::LoadPipeline()
             ThrowIfFailed(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_commandAllocators[n])));
         }
     }
+
+    timer.Init();
 }
 
 
@@ -278,7 +290,8 @@ void Renderer::LoadAssets()
     }
 
     //create constant buffer
-    mConstantBufferAccessor.init(m_device.Get(), &m_constantBufferData, sizeof(SceneConstantBuffer));
+    for(int i = 0; i<500; i++)
+        mConstantBufferAccessors[i].init(m_device.Get(), m_cbvHeap.Get(), &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 // the command list that references it has finished executing on the GPU.
@@ -401,11 +414,7 @@ void Renderer::LoadAssets()
         WaitForGpu();
     }
 
-    ST_Matrix4 model = gMatrix4Identity;
-    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(1,1,1), gVector3Zero, gVector3Up);
-    ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.85f, 0.1f, 1000.0f);
-    
-    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+
 }
 
 
@@ -421,7 +430,11 @@ void Renderer::OnUpdate()
     //    m_constantBufferData.offset.x = -offsetBounds;
     //}
     //memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
-    mConstantBufferAccessor.updateConstantBufferData(&m_constantBufferData);
+    //ST_Matrix4 model = gMatrix4Identity;
+    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(3, 3, 3), gVector3Zero, gVector3Up);
+    //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+    //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
 }
 
 // Render the scene.
@@ -464,7 +477,7 @@ void Renderer::PopulateCommandList()
     // Set necessary state.
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
 
-    mConstantBufferAccessor.bind(m_commandList.Get());
+    
     ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get()};
     int c = _countof(ppHeaps);
     m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
@@ -489,7 +502,22 @@ void Renderer::PopulateCommandList()
 
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    mCubeVB.draw(m_commandList.Get());
+
+
+    for (int i = 0; i < 20; i++)
+    {
+        for (int j = 0; j < 20; j++)
+        {
+            int index = i * 20 + j;
+            mConstantBufferAccessors[index].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
+            ST_Matrix4 model = sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j));
+            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+            mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
+            mCubeVB.draw(m_commandList.Get());
+        }
+    }
 
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
