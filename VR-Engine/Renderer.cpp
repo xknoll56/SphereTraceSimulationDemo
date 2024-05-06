@@ -435,6 +435,19 @@ void Renderer::OnUpdate()
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
+
+    for (int i = 0; i < 20; i++)
+    {
+        for (int j = 0; j < 20; j++)
+        {
+            int index = i * 20 + j;
+            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.GetElapsedTimeInSeconds()), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
+            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+            mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
+        }
+    }
 }
 
 // Render the scene.
@@ -487,13 +500,17 @@ void Renderer::PopulateCommandList()
     m_commandList->RSSetViewports(1, &m_viewport);
     m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
+
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
     // Indicate that the back buffer will be used as a render target.
     CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_commandList->ResourceBarrier(1, &resourceBarrier);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     // Record commands.
     const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -503,18 +520,15 @@ void Renderer::PopulateCommandList()
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+    mConstantBufferAccessors[0].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
 
+    
     for (int i = 0; i < 20; i++)
     {
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
             mConstantBufferAccessors[index].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
-            ST_Matrix4 model = sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j));
-            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-            mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
             mCubeVB.draw(m_commandList.Get());
         }
     }
