@@ -129,12 +129,12 @@ void Renderer::LoadPipeline()
         cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
 
-        // Describe and create a shader resource view (SRV) heap for the texture.
-        D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
-        srvHeapDesc.NumDescriptors = 1;
-        srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
+        //// Describe and create a shader resource view (SRV) heap for the texture.
+        //D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+        //srvHeapDesc.NumDescriptors = 1;
+        //srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        //srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        //ThrowIfFailed(m_device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&m_srvHeap)));
 
         // Step 1: Define Descriptor Heap Parameters
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
@@ -206,8 +206,8 @@ void Renderer::LoadAssets()
         //D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
         //D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
 
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(2, rootParameters, 1, &sampler, rootSignatureFlags);
+        //CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        //rootSignatureDesc.Init_1_1(2, rootParameters, 1, &sampler, rootSignatureFlags);
 
         mRootSigniture.init(m_device.Get(), rootParameters, 2, rootSignatureFlags, sampler);
     }
@@ -290,7 +290,7 @@ void Renderer::LoadAssets()
     }
 
     //create constant buffer
-    for(int i = 0; i<500; i++)
+    for(int i = 0; i<400; i++)
         mConstantBufferAccessors[i].init(m_device.Get(), m_cbvHeap.Get(), &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -359,7 +359,9 @@ void Renderer::LoadAssets()
         srvDesc.Format = textureDesc.Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, m_srvHeap->GetCPUDescriptorHandleForHeapStart());
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 999;
+        m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, handle);
     }
 
     //create dsv
@@ -421,17 +423,9 @@ void Renderer::LoadAssets()
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
-    //const float translationSpeed = 0.005f;
-    //const float offsetBounds = 1.25f;
 
-    //m_constantBufferData.offset.x += translationSpeed;
-    //if (m_constantBufferData.offset.x > offsetBounds)
-    //{
-    //    m_constantBufferData.offset.x = -offsetBounds;
-    //}
-    //memcpy(m_pCbvDataBegin, &m_constantBufferData, sizeof(m_constantBufferData));
     //ST_Matrix4 model = gMatrix4Identity;
-    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(3, 3, 3), gVector3Zero, gVector3Up);
+    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
@@ -491,10 +485,17 @@ void Renderer::PopulateCommandList()
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
 
     
-    ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get()};
-    int c = _countof(ppHeaps);
-    m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-    m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
+    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get()};
+    m_commandList->SetDescriptorHeaps(1, ppHeaps);
+    // Set descriptor heaps
+    //ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
+    //m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    //ppHeaps[0] = m_cbvHeap.Get();
+    //m_commandList->SetDescriptorHeaps(1, ppHeaps);
+    // Bind root descriptor tables
+    m_commandList->SetGraphicsRootDescriptorTable(1, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(),
+        m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 999));
+   // m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
 
     m_commandList->RSSetViewports(1, &m_viewport);
@@ -522,7 +523,8 @@ void Renderer::PopulateCommandList()
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     mConstantBufferAccessors[0].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
-
+    //ppHeaps[0] =  m_cbvHeap.Get();
+    //m_commandList->SetDescriptorHeaps(1, ppHeaps);
     
     for (int i = 0; i < 20; i++)
     {

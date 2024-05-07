@@ -204,8 +204,6 @@ struct ConstantBufferAccessor
 
     void bind(ID3D12GraphicsCommandList* pCommandList, ID3D12Device* pDevice, ID3D12DescriptorHeap* m_cbvHeap)
     {
-        ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap };
-        pCommandList->SetDescriptorHeaps(1, ppHeaps);
         pCommandList->SetGraphicsRootDescriptorTable(0, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), 
             pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)*accessorIndex));
     }
@@ -278,7 +276,7 @@ private:
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
 
-    ComPtr<ID3D12DescriptorHeap> m_srvHeap;
+   // ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     //ComPtr<ID3D12PipelineState> m_pipelineState;
     Pipeline mPipeline;
