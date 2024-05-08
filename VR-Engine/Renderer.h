@@ -153,16 +153,58 @@ struct VertexBuffer
     }
 };
 
+struct DescriptorHandleProvider
+{
+    ID3D12DescriptorHeap* m_cbvHeap;
+    UINT numDescriptors;
+    UINT numDescriptorsProvided;
+
+    void init(ID3D12Device* pDevice, UINT numDescriptors)
+    {
+        this->numDescriptors = numDescriptors;
+        this->numDescriptorsProvided = 0;
+
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        cbvHeapDesc.NumDescriptors = numDescriptors;
+        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        ThrowIfFailed(pDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(ID3D12Device* pDevice)
+    {
+        if (numDescriptorsProvided < numDescriptors)
+        {
+            D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
+            handle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * numDescriptorsProvided;
+            numDescriptorsProvided++;
+            return handle;
+        }
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE GpuHandleFromCpuHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle)
+    {
+        int offset = (int)(cpuHandle.ptr - m_cbvHeap->GetCPUDescriptorHandleForHeapStart().ptr);
+        return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), offset);
+    }
+
+    void bindDescriptorHeap(ID3D12GraphicsCommandList* m_commandList)
+    {
+        ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap };
+        m_commandList->SetDescriptorHeaps(1, ppHeaps);
+    }
+};
+
 struct ConstantBufferAccessor
 {
     
     ID3D12Resource* m_constantBuffer;
     UINT8* m_pCbvDataBegin;
     UINT mSizeofConstantBufferData;
-    UINT accessorIndex;
-    static UINT numAccessors;
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
 
-    void init(ID3D12Device* pDevice, ID3D12DescriptorHeap* m_cbvHeap, void* pConstantBufferData, UINT sizeofConstantBufferData)
+    void init(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, void* pConstantBufferData, UINT sizeofConstantBufferData)
     {
 
         // Create the constant buffer.
@@ -183,17 +225,16 @@ struct ConstantBufferAccessor
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
             cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
             cbvDesc.SizeInBytes = mSizeofConstantBufferData;
-            D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
-            handle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)*numAccessors;
-            accessorIndex = numAccessors;
-            numAccessors++;
-            pDevice->CreateConstantBufferView(&cbvDesc, handle);
+            cpuDescriptorHandle = dhp.getCpuHandle(pDevice);
+            pDevice->CreateConstantBufferView(&cbvDesc, cpuDescriptorHandle);
 
             // Map and initialize the constant buffer. We don't unmap this until the
             // app closes. Keeping things mapped for the lifetime of the resource is okay.
             CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
             ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
             memcpy(m_pCbvDataBegin, pConstantBufferData, sizeofConstantBufferData);
+
+            gpuDescriptorHandle = dhp.GpuHandleFromCpuHandle(cpuDescriptorHandle);
         }
     }
 
@@ -202,10 +243,9 @@ struct ConstantBufferAccessor
         memcpy(m_pCbvDataBegin, pConstantBufferData, mSizeofConstantBufferData);
     }
 
-    void bind(ID3D12GraphicsCommandList* pCommandList, ID3D12Device* pDevice, ID3D12DescriptorHeap* m_cbvHeap)
+    void bind(ID3D12GraphicsCommandList* pCommandList)
     {
-        pCommandList->SetGraphicsRootDescriptorTable(0, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), 
-            pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)*accessorIndex));
+        pCommandList->SetGraphicsRootDescriptorTable(0, gpuDescriptorHandle);
     }
 };
 
@@ -274,8 +314,8 @@ private:
     //ComPtr<ID3D12RootSignature> m_rootSignature;
     RootSigniture mRootSigniture;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
-
+    //ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
+    DescriptorHandleProvider dhp;
    // ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
     //ComPtr<ID3D12PipelineState> m_pipelineState;

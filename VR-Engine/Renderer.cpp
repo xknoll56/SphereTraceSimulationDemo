@@ -12,7 +12,6 @@
 #include "stdafx.h"
 #include "Renderer.h"
 
-UINT ConstantBufferAccessor::numAccessors = 0;
 
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
@@ -123,11 +122,12 @@ void Renderer::LoadPipeline()
         // Describe and create a constant buffer view (CBV) descriptor heap.
         // Flags indicate that this descriptor heap can be bound to the pipeline 
         // and that descriptors contained in it can be referenced by a root table.
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = 1000;
-        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+        //D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+        //cbvHeapDesc.NumDescriptors = 1000;
+        //cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        //cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        //ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
+        dhp.init(m_device.Get(), 1000);
 
         //// Describe and create a shader resource view (SRV) heap for the texture.
         //D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -291,7 +291,7 @@ void Renderer::LoadAssets()
 
     //create constant buffer
     for(int i = 0; i<400; i++)
-        mConstantBufferAccessors[i].init(m_device.Get(), m_cbvHeap.Get(), &m_constantBufferData, sizeof(SceneConstantBuffer));
+        mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 // the command list that references it has finished executing on the GPU.
@@ -359,7 +359,7 @@ void Renderer::LoadAssets()
         srvDesc.Format = textureDesc.Format;
         srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = 1;
-        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = dhp.m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
         handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 999;
         m_device->CreateShaderResourceView(m_texture.Get(), &srvDesc, handle);
     }
@@ -485,15 +485,14 @@ void Renderer::PopulateCommandList()
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
 
     
-    ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap.Get()};
-    m_commandList->SetDescriptorHeaps(1, ppHeaps);
+    dhp.bindDescriptorHeap(m_commandList.Get());
     // Set descriptor heaps
     //ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
     //m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
     //ppHeaps[0] = m_cbvHeap.Get();
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
     // Bind root descriptor tables
-    m_commandList->SetGraphicsRootDescriptorTable(1, CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(),
+    m_commandList->SetGraphicsRootDescriptorTable(1, CD3DX12_GPU_DESCRIPTOR_HANDLE(dhp.m_cbvHeap->GetGPUDescriptorHandleForHeapStart(),
         m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 999));
    // m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
@@ -522,7 +521,7 @@ void Renderer::PopulateCommandList()
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    mConstantBufferAccessors[0].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
+    mConstantBufferAccessors[0].bind(m_commandList.Get());
     //ppHeaps[0] =  m_cbvHeap.Get();
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
     
@@ -531,7 +530,7 @@ void Renderer::PopulateCommandList()
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
-            mConstantBufferAccessors[index].bind(m_commandList.Get(), m_device.Get(), m_cbvHeap.Get());
+            mConstantBufferAccessors[index].bind(m_commandList.Get());
             mCubeVB.draw(m_commandList.Get());
         }
     }
