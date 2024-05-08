@@ -11,7 +11,7 @@
 
 cbuffer SceneConstantBuffer : register(b0)
 {
-    float4x4 mvp;
+    float4x4 mvp[400];
 };
 
 struct PSInput
@@ -23,11 +23,11 @@ struct PSInput
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
+PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD, uint instanceID : SV_InstanceID)
 {
     PSInput result;
 
-    result.position = mul(position, mvp);
+    result.position = mul(position, mvp[instanceID]);
     result.uv = uv;
 
     return result;

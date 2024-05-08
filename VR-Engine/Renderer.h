@@ -151,6 +151,12 @@ struct VertexBuffer
         pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
         pCommandList->DrawInstanced(numVerts, 1, 0, 0);
     }
+
+    void drawInstanced(ID3D12GraphicsCommandList* pCommandList, UINT numInstances)
+    {
+        pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+        pCommandList->DrawInstanced(numVerts, numInstances, 0, 0);
+    }
 };
 
 struct DescriptorHandleProvider
@@ -299,7 +305,7 @@ private:
 
     struct alignas(256) SceneConstantBuffer
     {
-        ST_Matrix4 mvp;
+        ST_Matrix4 mvps[400];
     };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
@@ -331,7 +337,7 @@ private:
     ComPtr<ID3D12Resource> m_texture;
     ComPtr<ID3D12Resource> m_depthStencil;
     VertexBuffer mCubeVB;
-    ConstantBufferAccessor mConstantBufferAccessors[500];
+    ConstantBufferAccessor mConstantBufferAccessor;
 
     // Synchronization objects.
     UINT m_frameIndex;

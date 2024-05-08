@@ -289,9 +289,8 @@ void Renderer::LoadAssets()
         mCubeVB.init(m_device.Get(), (float*)triangleVertices, sizeof(triangleVertices), sizeof(Vertex));
     }
 
-    //create constant buffer
-    for(int i = 0; i<400; i++)
-        mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+
+    mConstantBufferAccessor.init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 // the command list that references it has finished executing on the GPU.
@@ -438,10 +437,10 @@ void Renderer::OnUpdate()
             ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.GetElapsedTimeInSeconds()), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
             ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
             ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-            mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
+            m_constantBufferData.mvps[index] = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
         }
     }
+    mConstantBufferAccessor.updateConstantBufferData(m_constantBufferData.mvps);
 }
 
 // Render the scene.
@@ -521,19 +520,8 @@ void Renderer::PopulateCommandList()
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    mConstantBufferAccessors[0].bind(m_commandList.Get());
-    //ppHeaps[0] =  m_cbvHeap.Get();
-    //m_commandList->SetDescriptorHeaps(1, ppHeaps);
-    
-    for (int i = 0; i < 20; i++)
-    {
-        for (int j = 0; j < 20; j++)
-        {
-            int index = i * 20 + j;
-            mConstantBufferAccessors[index].bind(m_commandList.Get());
-            mCubeVB.draw(m_commandList.Get());
-        }
-    }
+    mConstantBufferAccessor.bind(m_commandList.Get());
+    mCubeVB.drawInstanced(m_commandList.Get(), 400);
 
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
