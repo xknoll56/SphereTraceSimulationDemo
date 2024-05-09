@@ -161,7 +161,7 @@ void Renderer::LoadPipeline()
         }
     }
 
-    timer.Init();
+    timer.init();
 }
 
 
@@ -429,13 +429,13 @@ void Renderer::OnUpdate()
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
-
+    timer.update();
     for (int i = 0; i < 20; i++)
     {
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
-            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.GetElapsedTimeInSeconds()), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
+            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
             ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
             ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
             m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));

@@ -12,6 +12,7 @@
 #include "stdafx.h"
 #include "DXSample.h"
 
+
 using namespace Microsoft::WRL;
 
 DXSample::DXSample(UINT width, UINT height, std::wstring name) :

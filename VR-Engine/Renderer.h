@@ -22,251 +22,33 @@ using namespace DirectX;
 // An example of this can be found in the class method: OnDestroy().
 using Microsoft::WRL::ComPtr;
 
-
-struct RootSigniture
-{
-    ID3D12RootSignature* pRootSigniture;
-    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData;
-
-    RootSigniture()
-    {
-        // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
-    }
-
-    ~RootSigniture()
-    {
-        pRootSigniture->Release();
-    }
+#include "Pipeline.h"
+#include "VertexBuffer.h"
+#include "DescriptorHandleProvider.h"
+#include "ConstantBuffer.h"
+#include "Time.h"
 
 
-    void init(ID3D12Device* pDevice, CD3DX12_ROOT_PARAMETER1* rootParameters, UINT numRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags, D3D12_STATIC_SAMPLER_DESC samplerDesc)
-    {
-
-        if (FAILED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
-        {
-            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-        }
-
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(numRootParameters, rootParameters, 1, &samplerDesc, flags);
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
-        ThrowIfFailed(pDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&pRootSigniture)));
-    }
-};
-
-struct Pipeline
-{
-    ID3D12PipelineState* pPipelineState;
-
-    void init(ID3D12Device* pDevice, RootSigniture& rootSigniture, LPCWSTR vertexShaderPath, LPCWSTR pixelShaderPath,
-        D3D12_INPUT_ELEMENT_DESC* inputElementDescs, UINT inputElementSize)
-    {
-        ComPtr<ID3DBlob> vertexShader;
-        ComPtr<ID3DBlob> pixelShader;
-
-#if defined(_DEBUG)
-        // Enable better shader debugging with the graphics debugging tools.
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-#else
-        UINT compileFlags = 0;
-#endif
-
-        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)vertexShaderPath, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)pixelShaderPath, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
-
-        // Describe and create the graphics pipeline state object (PSO).
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-        psoDesc.InputLayout = { inputElementDescs, inputElementSize };
-        psoDesc.pRootSignature = rootSigniture.pRootSigniture;
-        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
-        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
-        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-        CD3DX12_DEPTH_STENCIL_DESC1 depthDesc(D3D12_DEFAULT);
-        psoDesc.DepthStencilState = depthDesc;
-        psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-        psoDesc.SampleMask = UINT_MAX;
-        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-        psoDesc.NumRenderTargets = 1;
-        psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-        psoDesc.SampleDesc.Count = 1;
-
-        ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pPipelineState)));
-    }
-
-};
-
-struct Vertex
-{
-    ST_Vector3 position;
-    ST_Vector3 normal;
-    ST_Vector2 uv;
-};
 
 
-struct VertexBuffer
-{
-    ID3D12Resource* m_vertexBuffer;
-    D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-    UINT numVerts;
-
-    void init(ID3D12Device* pDevice, float* triangleVertices, UINT sizeofVerts, UINT stride)
-    {
-        // Note: using upload heaps to transfer static data like vert buffers is not 
-        // recommended. Every time the GPU needs it, the upload heap will be marshalled 
-        // over. Please read up on Default Heap usage. An upload heap is used here for 
-        // code simplicity and because there are very few verts to actually transfer.
-        CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeofVerts);
-        ThrowIfFailed(pDevice->CreateCommittedResource(
-            &heapProperties,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&m_vertexBuffer)));
-
-        // Copy the triangle data to the vertex buffer.
-        UINT8* pVertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-        ThrowIfFailed(m_vertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, triangleVertices, sizeofVerts);
-        m_vertexBuffer->Unmap(0, nullptr);
-
-        // Initialize the vertex buffer view.
-        m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-        m_vertexBufferView.StrideInBytes = stride;
-        m_vertexBufferView.SizeInBytes = sizeofVerts;
-        this->numVerts = sizeofVerts / stride;
-    }
-
-
-    void draw(ID3D12GraphicsCommandList* pCommandList)
-    {
-        pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-        pCommandList->DrawInstanced(numVerts, 1, 0, 0);
-    }
-};
-
-struct DescriptorHandleProvider
-{
-    ID3D12DescriptorHeap* m_cbvHeap;
-    UINT numDescriptors;
-    UINT numDescriptorsProvided;
-
-    void init(ID3D12Device* pDevice, UINT numDescriptors)
-    {
-        this->numDescriptors = numDescriptors;
-        this->numDescriptorsProvided = 0;
-
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
-        cbvHeapDesc.NumDescriptors = numDescriptors;
-        cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-        cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        ThrowIfFailed(pDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-    }
-
-    D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(ID3D12Device* pDevice)
-    {
-        if (numDescriptorsProvided < numDescriptors)
-        {
-            D3D12_CPU_DESCRIPTOR_HANDLE handle = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
-            handle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * numDescriptorsProvided;
-            numDescriptorsProvided++;
-            return handle;
-        }
-    }
-
-    D3D12_GPU_DESCRIPTOR_HANDLE GpuHandleFromCpuHandle(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle)
-    {
-        int offset = (int)(cpuHandle.ptr - m_cbvHeap->GetCPUDescriptorHandleForHeapStart().ptr);
-        return CD3DX12_GPU_DESCRIPTOR_HANDLE(m_cbvHeap->GetGPUDescriptorHandleForHeapStart(), offset);
-    }
-
-    void bindDescriptorHeap(ID3D12GraphicsCommandList* m_commandList)
-    {
-        ID3D12DescriptorHeap* ppHeaps[] = { m_cbvHeap };
-        m_commandList->SetDescriptorHeaps(1, ppHeaps);
-    }
-};
-
-struct ConstantBufferAccessor
-{
-    
-    ID3D12Resource* m_constantBuffer;
-    UINT8* m_pCbvDataBegin;
-    UINT mSizeofConstantBufferData;
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
-
-    void init(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, void* pConstantBufferData, UINT sizeofConstantBufferData)
-    {
-
-        // Create the constant buffer.
-        {
-            mSizeofConstantBufferData = sizeofConstantBufferData;
-
-            CD3DX12_HEAP_PROPERTIES heapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-            CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(mSizeofConstantBufferData);
-            ThrowIfFailed(pDevice->CreateCommittedResource(
-                &heapProperties,
-                D3D12_HEAP_FLAG_NONE,
-                &resourceDesc,
-                D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr,
-                IID_PPV_ARGS(&m_constantBuffer)));
-
-            // Describe and create a constant buffer view.
-            D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-            cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
-            cbvDesc.SizeInBytes = mSizeofConstantBufferData;
-            cpuDescriptorHandle = dhp.getCpuHandle(pDevice);
-            pDevice->CreateConstantBufferView(&cbvDesc, cpuDescriptorHandle);
-
-            // Map and initialize the constant buffer. We don't unmap this until the
-            // app closes. Keeping things mapped for the lifetime of the resource is okay.
-            CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-            ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-            memcpy(m_pCbvDataBegin, pConstantBufferData, sizeofConstantBufferData);
-
-            gpuDescriptorHandle = dhp.GpuHandleFromCpuHandle(cpuDescriptorHandle);
-        }
-    }
-
-    void updateConstantBufferData(void* pConstantBufferData)
-    {
-        memcpy(m_pCbvDataBegin, pConstantBufferData, mSizeofConstantBufferData);
-    }
-
-    void bind(ID3D12GraphicsCommandList* pCommandList)
-    {
-        pCommandList->SetGraphicsRootDescriptorTable(0, gpuDescriptorHandle);
-    }
-};
-
-struct Timer 
-{
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER start;
-
-    void Init() 
-    {
-        QueryPerformanceFrequency(&frequency);
-        QueryPerformanceCounter(&start);
-    }
-
-    double GetElapsedTimeInSeconds() 
-    {
-        LARGE_INTEGER end;
-        QueryPerformanceCounter(&end);
-        return static_cast<double>(end.QuadPart - start.QuadPart) / frequency.QuadPart;
-    }
-};
+//struct Timer 
+//{
+//    LARGE_INTEGER frequency;
+//    LARGE_INTEGER start;
+//
+//    void Init() 
+//    {
+//        QueryPerformanceFrequency(&frequency);
+//        QueryPerformanceCounter(&start);
+//    }
+//
+//    double GetElapsedTimeInSeconds() 
+//    {
+//        LARGE_INTEGER end;
+//        QueryPerformanceCounter(&end);
+//        return static_cast<double>(end.QuadPart - start.QuadPart) / frequency.QuadPart;
+//    }
+//};
 
 
 
@@ -339,7 +121,7 @@ private:
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValues[FrameCount];
 
-    Timer timer;
+    Time timer;
 
     void LoadPipeline();
     void LoadAssets();
