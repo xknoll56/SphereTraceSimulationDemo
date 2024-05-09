@@ -16,6 +16,7 @@ struct VertexBuffer
     D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
     UINT numVerts;
 
+
     void init(ID3D12Device* pDevice, float* triangleVertices, UINT sizeofVerts, UINT stride)
     {
         // Note: using upload heaps to transfer static data like vert buffers is not 
@@ -51,5 +52,213 @@ struct VertexBuffer
     {
         pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
         pCommandList->DrawInstanced(numVerts, 1, 0, 0);
+    }
+
+    static VertexBuffer createPlane(ID3D12Device* pDevice)
+    {
+        float planeVertexData[] = {
+
+            //top face
+            -0.5f, 0.0f,0.5f,0,1,0, 0.0f, 0.0f,
+            0.5f, 0.0f,-0.5f,0,1,0, 1.0f, 1.0f,
+            -0.5f, 0.0f,-0.5f,0,1,0, 0.0f, 1.0f,
+            -0.5f, 0.0f,0.5f,0,1,0, 0.0f, 0.0f,
+            0.5f, 0.0f,0.5f,0,1,0, 1.0f, 0.0f,
+            0.5f, 0.0f,-0.5f,0,1,0, 1.0f, 1.0f,
+
+            //bottom face
+            -0.5f, 0.0f,0.5f,0,-1,0, 0.0f, 0.0f,
+            -0.5f, 0.0f,-0.5f,0,-1,0, 0.0f, 1.0f,
+            0.5f, 0.0f,-0.5f,0,-1,0, 1.0f, 1.0f,
+            -0.5f, 0.0f,0.5f,0,-1,0, 0.0f, 0.0f,
+            0.5f, 0.0f,-0.5f,0,-1,0, 1.0f, 1.0f,
+            0.5f, 0.0f,0.5f,0,-1,0, 1.0f, 0.0f,
+        };
+
+        VertexBuffer vb;
+        vb.init(pDevice, (float*)planeVertexData, sizeof(planeVertexData), sizeof(Vertex));
+        return vb;
+    }
+
+    static VertexBuffer createCube(ID3D12Device* pDevice)
+    {
+        VertexBuffer vb;
+        // Create the vertex buffer.
+        {
+            // Define the geometry for a triangle.
+            Vertex triangleVertices[] =
+            {
+                //back face
+                -0.5f, -0.5f,-0.5f, 0.0f, 0.0f, -1, 0.0f, 0.0f,
+                -0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 1.0f,
+                0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
+                -0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 0.0f,
+                0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
+                0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 0.0f,
+
+                //right face
+                0.5f, -0.5f,-0.5f, 1, 0, 0, 0.0f, 0.0f,
+                0.5f, 0.5f,-0.5f,1, 0, 0, 0.0f, 1.0f,
+                0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
+                0.5f, -0.5f,-0.5f,1, 0, 0, 0.0f, 0.0f,
+                0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
+                0.5f, -0.5f,0.5f,1, 0, 0, 1.0f, 0.0f,
+
+                //front face
+                -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
+                0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
+                -0.5f, 0.5f,0.5f,0,0,1, 0.0f, 1.0f,
+                -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
+                0.5f, -0.5f,0.5f,0,0,1, 1.0f, 0.0f,
+                0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
+
+                //left face
+                -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
+                -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
+                -0.5f, 0.5f,-0.5f,-1,0,0, 0.0f, 1.0f,
+                -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
+                -0.5f, -0.5f,0.5f,-1,0,0, 1.0f, 0.0f,
+                -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
+
+                //top face
+                -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
+                0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
+                -0.5f, 0.5f,-0.5f,0,1,0, 0.0f, 1.0f,
+                -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
+                0.5f, 0.5f,0.5f,0,1,0, 1.0f, 0.0f,
+                0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
+
+                //bottom face
+                -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
+                -0.5f, -0.5f,-0.5f,0,-1,0, 0.0f, 1.0f,
+                0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
+                -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
+                0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
+                0.5f, -0.5f,0.5f,0,-1,0, 1.0f, 0.0f,
+            };
+
+
+            vb.init(pDevice, (float*)triangleVertices, sizeof(triangleVertices), sizeof(Vertex));
+        }
+
+        return vb;
+    }
+
+    static VertexBuffer createSphere(ID3D12Device* pDevice)
+    {
+        int segments = 30;
+        //int rings = 30;
+        int sz = segments * 2 * segments * 48;
+        int indSz = segments * segments * 2 * 6;
+        //UINT* indices = (UINT*)malloc(sizeof(UINT) * indSz);
+        float* verts = (float*)malloc(sizeof(float) * sz);
+        int index = 0;
+        int offset = 0;
+        UINT indicesIndex = 0;
+        for (int j = 0; j < segments; j++)
+        {
+            for (int i = 0; i < 2 * segments; i++)
+            {
+                index = offset * 48;
+                float theta = (float)i * M_PI / (float)segments;
+                float theta1 = (float)(i + 1) * M_PI / (float)segments;
+                float psi = (float)j * M_PI / (float)segments + M_PI / 2.0;
+                float psi1 = (float)(j + 1) * M_PI / (float)segments + M_PI / 2.0;
+
+                ST_Vector3 v3 = { 0.5f * cos(theta) * cos(psi), 0.5f * sin(psi), 0.5f * sin(theta) * cos(psi) };
+                ST_Vector3 v2 = { 0.5f * cos(theta) * cos(psi1), 0.5f * sin(psi1), 0.5f * sin(theta) * cos(psi1) };
+                ST_Vector3 v1 = { 0.5f * cos(theta1) * cos(psi), 0.5f * sin(psi), 0.5f * sin(theta1) * cos(psi) };
+
+                //ST_Vector3 normal = sphereTraceVector3Cross(sphereTraceVector3Subtract(v2, v1), sphereTraceVector3Subtract(v3, v1));
+                //normal = sphereTraceVector3Normalize(normal);
+
+                ST_Vector3 normal1 = sphereTraceVector3Normalize(v1);
+                ST_Vector3 normal2 = sphereTraceVector3Normalize(v2);
+                ST_Vector3 normal3 = sphereTraceVector3Normalize(v3);
+
+                verts[index] = v1.x;
+                verts[index + 1] = v1.y;
+                verts[index + 2] = v1.z;
+                verts[index + 3] = normal1.x;
+                verts[index + 4] = normal1.y;
+                verts[index + 5] = normal1.z;
+                verts[index + 6] = (float)(i + 1.0f) / (2.0f * segments);
+                verts[index + 7] = (float)j / segments;
+
+                verts[index + 8] = v2.x;
+                verts[index + 9] = v2.y;
+                verts[index + 10] = v2.z;
+                verts[index + 11] = normal2.x;
+                verts[index + 12] = normal2.y;
+                verts[index + 13] = normal2.z;
+                verts[index + 14] = (float)i / (2.0f * segments);
+                verts[index + 15] = (float)(j + 1.0f) / segments;
+
+                verts[index + 16] = v3.x;
+                verts[index + 17] = v3.y;
+                verts[index + 18] = v3.z;
+                verts[index + 19] = normal3.x;
+                verts[index + 20] = normal3.y;
+                verts[index + 21] = normal3.z;
+                verts[index + 22] = (float)i / (2.0f * segments);
+                verts[index + 23] = (float)j / segments;
+
+                //indices[indicesIndex] = indicesIndex++;
+                //indices[indicesIndex] = indicesIndex++;
+                //indices[indicesIndex] = indicesIndex++;
+
+
+                v3 = { 0.5f * cosf(theta) * cosf(psi1), 0.5f * sinf(psi1), 0.5f * sinf(theta) * cosf(psi1) };
+                v2 = { 0.5f * cosf(theta1) * cosf(psi1), 0.5f * sinf(psi1), 0.5f * sinf(theta1) * cosf(psi1) };
+                v1 = { 0.5f * cosf(theta1) * cosf(psi), 0.5f * sinf(psi), 0.5f * sinf(theta1) * cosf(psi) };
+
+                //normal = sphereTraceVector3Cross(sphereTraceVector3Subtract(v2, v1), sphereTraceVector3Subtract(v3, v1));
+                //normal = sphereTraceVector3Normalize(normal);
+                normal1 = sphereTraceVector3Normalize(v1);
+                normal2 = sphereTraceVector3Normalize(v2);
+                normal3 = sphereTraceVector3Normalize(v3);
+
+                verts[index + 24] = v1.x;
+                verts[index + 25] = v1.y;
+                verts[index + 26] = v1.z;
+                verts[index + 27] = normal1.x;
+                verts[index + 28] = normal1.y;
+                verts[index + 29] = normal1.z;
+                verts[index + 30] = (float)(i + 1.0f) / (2.0f * segments);
+                verts[index + 31] = (float)j / segments;
+
+                verts[index + 32] = v2.x;
+                verts[index + 33] = v2.y;
+                verts[index + 34] = v2.z;
+                verts[index + 35] = normal2.x;
+                verts[index + 36] = normal2.y;
+                verts[index + 37] = normal2.z;
+                verts[index + 38] = (float)(i + 1.0f) / (2.0f * segments);
+                verts[index + 39] = (float)(j + 1.0f) / segments;
+
+
+                verts[index + 40] = v3.x;
+                verts[index + 41] = v3.y;
+                verts[index + 42] = v3.z;
+                verts[index + 43] = normal3.x;
+                verts[index + 44] = normal3.y;
+                verts[index + 45] = normal3.z;
+                verts[index + 46] = (float)i / (2.0f * segments);
+                verts[index + 47] = (float)(j + 1.0f) / segments;
+
+                //indices[indicesIndex] = indicesIndex++;
+                //indices[indicesIndex] = indicesIndex++;
+                //indices[indicesIndex] = indicesIndex++;
+
+                offset++;
+            }
+        }
+
+        VertexBuffer vb;
+        vb.init(pDevice, verts, sz * sizeof(float), 8 * sizeof(float));
+        //gIndexBufferSphere = indexBufferCreate(d3d11Device, indSz, indices);
+        free(verts);
+        //free(indices);
+        return vb;
     }
 };

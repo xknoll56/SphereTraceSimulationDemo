@@ -113,6 +113,8 @@ private:
     ComPtr<ID3D12Resource> m_texture;
     ComPtr<ID3D12Resource> m_depthStencil;
     VertexBuffer mCubeVB;
+    VertexBuffer mPlaneVB;
+    VertexBuffer mSphereVB;
     ConstantBufferAccessor mConstantBufferAccessors[500];
 
     // Synchronization objects.

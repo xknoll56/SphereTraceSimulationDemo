@@ -231,67 +231,14 @@ void Renderer::LoadAssets()
 
 
 
-    // Create the vertex buffer.
-    {
-        // Define the geometry for a triangle.
-        Vertex triangleVertices[] =
-        {
-            //back face
-            -0.5f, -0.5f,-0.5f, 0.0f, 0.0f, -1, 0.0f, 0.0f,
-            -0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 1.0f,
-            0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
-            -0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 0.0f, 0.0f,
-            0.5f, 0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 1.0f,
-            0.5f, -0.5f,-0.5f,0.0f, 0.0f, -1, 1.0f, 0.0f,
-
-            //right face
-            0.5f, -0.5f,-0.5f, 1, 0, 0, 0.0f, 0.0f,
-            0.5f, 0.5f,-0.5f,1, 0, 0, 0.0f, 1.0f,
-            0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
-            0.5f, -0.5f,-0.5f,1, 0, 0, 0.0f, 0.0f,
-            0.5f, 0.5f,0.5f,1, 0, 0, 1.0f, 1.0f,
-            0.5f, -0.5f,0.5f,1, 0, 0, 1.0f, 0.0f,
-
-            //front face
-            -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
-            0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
-            -0.5f, 0.5f,0.5f,0,0,1, 0.0f, 1.0f,
-            -0.5f, -0.5f,0.5f,0,0,1, 0.0f, 0.0f,
-            0.5f, -0.5f,0.5f,0,0,1, 1.0f, 0.0f,
-            0.5f, 0.5f,0.5f,0,0,1, 1.0f, 1.0f,
-
-            //left face
-            -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
-            -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
-            -0.5f, 0.5f,-0.5f,-1,0,0, 0.0f, 1.0f,
-            -0.5f, -0.5f,-0.5f,-1,0,0, 0.0f, 0.0f,
-            -0.5f, -0.5f,0.5f,-1,0,0, 1.0f, 0.0f,
-            -0.5f, 0.5f,0.5f,-1,0,0, 1.0f, 1.0f,
-
-            //top face
-            -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
-            0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
-            -0.5f, 0.5f,-0.5f,0,1,0, 0.0f, 1.0f,
-            -0.5f, 0.5f,0.5f,0,1,0, 0.0f, 0.0f,
-            0.5f, 0.5f,0.5f,0,1,0, 1.0f, 0.0f,
-            0.5f, 0.5f,-0.5f,0,1,0, 1.0f, 1.0f,
-
-            //bottom face
-            -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
-            -0.5f, -0.5f,-0.5f,0,-1,0, 0.0f, 1.0f,
-            0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
-            -0.5f, -0.5f,0.5f,0,-1,0, 0.0f, 0.0f,
-            0.5f, -0.5f,-0.5f,0,-1,0, 1.0f, 1.0f,
-            0.5f, -0.5f,0.5f,0,-1,0, 1.0f, 0.0f,
-        };
-
-
-        mCubeVB.init(m_device.Get(), (float*)triangleVertices, sizeof(triangleVertices), sizeof(Vertex));
-    }
+    mCubeVB = VertexBuffer::createCube(m_device.Get());
+    mPlaneVB = VertexBuffer::createPlane(m_device.Get());
+    mSphereVB = VertexBuffer::createSphere(m_device.Get());
 
     //create constant buffer
     for(int i = 0; i<400; i++)
         mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+    mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
 // the command list that references it has finished executing on the GPU.
@@ -416,7 +363,11 @@ void Renderer::LoadAssets()
         WaitForGpu();
     }
 
-
+    ST_Matrix4 model = sphereTraceMatrixScale(ST_VECTOR3(50, 50, 50));
+    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+    ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+    mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
 }
 
 
@@ -531,10 +482,11 @@ void Renderer::PopulateCommandList()
         {
             int index = i * 20 + j;
             mConstantBufferAccessors[index].bind(m_commandList.Get());
-            mCubeVB.draw(m_commandList.Get());
+            mSphereVB.draw(m_commandList.Get());
         }
     }
-
+    mConstantBufferAccessors[400].bind(m_commandList.Get());
+    mPlaneVB.draw(m_commandList.Get());
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_commandList->ResourceBarrier(1, &resourceBarrier);
