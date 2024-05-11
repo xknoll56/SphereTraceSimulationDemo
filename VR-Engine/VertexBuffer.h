@@ -144,6 +144,47 @@ struct VertexBuffer
         return vb;
     }
 
+    static VertexBuffer createCubeWireFrame(ID3D12Device* pDevice)
+    {
+        VertexBuffer vb;
+        {
+            float cubeVertexData[] = {
+
+                //back face
+                -0.5f, -0.5f, -0.5f,
+                -0.5f, 0.5f, -0.5f,
+                -0.5f, 0.5f, -0.5f,
+                0.5f, 0.5f, -0.5f,
+                0.5f, 0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f, -0.5f,
+
+                //connectors
+                -0.5f, -0.5f, -0.5f,
+                -0.5f, -0.5f, 0.5f,
+                0.5f, -0.5f, -0.5f,
+                0.5f, -0.5f, 0.5f,
+                0.5f, 0.5f, -0.5f,
+                0.5f, 0.5f, 0.5f,
+                -0.5f, 0.5f, -0.5f,
+                -0.5f, 0.5f, 0.5f,
+
+                //front face
+                -0.5f, -0.5f, 0.5f,
+                -0.5f, 0.5f, 0.5f,
+                -0.5f, 0.5f, 0.5f,
+                0.5f, 0.5f, 0.5f,
+                0.5f, 0.5f, 0.5f,
+                0.5f, -0.5f, 0.5f,
+                0.5f, -0.5f, 0.5f,
+                -0.5f, -0.5f, 0.5f
+            };
+            vb.init(pDevice, (float*)cubeVertexData, sizeof(cubeVertexData), sizeof(ST_Vector3));
+        }
+        return vb;
+    }
+
     static VertexBuffer createSphere(ID3D12Device* pDevice)
     {
         int segments = 30;

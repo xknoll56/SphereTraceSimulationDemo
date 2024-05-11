@@ -139,6 +139,12 @@ struct ConstantBufferAccessorStack
         }
     }
 
+    void updateAndBindtCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    {
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+    }
+
     void resetStackIndex(UINT stackIndex)
     {
         stackIndices[stackIndex] = 0;

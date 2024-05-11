@@ -181,5 +181,8 @@
     <FxCompile Include="shaders.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+    <FxCompile Include="WireFrameShaders.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

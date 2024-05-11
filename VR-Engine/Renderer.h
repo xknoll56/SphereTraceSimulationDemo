@@ -153,6 +153,7 @@ private:
     struct alignas(256) SceneConstantBuffer
     {
         ST_Matrix4 mvp;
+        ST_Vector4 color;
     };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
@@ -164,15 +165,13 @@ private:
     ComPtr<ID3D12Resource> m_renderTargets[FrameCount];
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
     ComPtr<ID3D12CommandQueue> m_commandQueue;
-    //ComPtr<ID3D12RootSignature> m_rootSignature;
     RootSigniture mRootSigniture;
+    RootSigniture mRootSignitureWireFrame;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
-    //ComPtr<ID3D12DescriptorHeap> m_cbvHeap;
     DescriptorHandleProvider dhp;
-   // ComPtr<ID3D12DescriptorHeap> m_srvHeap;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    //ComPtr<ID3D12PipelineState> m_pipelineState;
     Pipeline mPipeline;
+    Pipeline mPipelineWireFrame;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
 
@@ -185,6 +184,7 @@ private:
     
     ComPtr<ID3D12Resource> m_depthStencil;
     VertexBuffer mCubeVB;
+    VertexBuffer mCubeWireFrameVB;
     VertexBuffer mPlaneVB;
     VertexBuffer mSphereVB;
     //ConstantBufferAccessor mConstantBufferAccessors[500];

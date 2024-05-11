@@ -223,7 +223,41 @@ void Renderer::LoadAssets()
         };
 
 
-        mPipeline.init(m_device.Get(), mRootSigniture, L"shaders.hlsl", L"shaders.hlsl", inputElementDescs, _countof(inputElementDescs));
+        mPipeline.init(m_device.Get(), mRootSigniture, L"shaders.hlsl", L"shaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    }
+
+    // Create the root signiture for the wire frame pipeline
+    {
+
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+        // Allow input layout and deny uneccessary access to certain pipeline stages.
+        D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+        mRootSignitureWireFrame.init(m_device.Get(), rootParameters, 1, rootSignatureFlags);
+    }
+
+
+    // Create the pipeline for the wireframe models
+    {
+        // Define the vertex input layout.
+        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+
+        mPipelineWireFrame.init(m_device.Get(), mRootSignitureWireFrame, L"WireFrameShaders.hlsl", L"WireFrameShaders.hlsl", inputElementDescs, _countof(inputElementDescs),
+            D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
     }
 
     // Create the command list.
@@ -232,6 +266,7 @@ void Renderer::LoadAssets()
 
 
     mCubeVB = VertexBuffer::createCube(m_device.Get());
+    mCubeWireFrameVB = VertexBuffer::createCubeWireFrame(m_device.Get());
     mPlaneVB = VertexBuffer::createPlane(m_device.Get());
     mSphereVB = VertexBuffer::createSphere(m_device.Get());
 
@@ -384,34 +419,24 @@ void Renderer::PopulateCommandList()
     ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), mPipeline.pPipelineState));
 
     // Set necessary state.
-    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-
     
     dhp.bindDescriptorHeap(m_commandList.Get());
-    // Set descriptor heaps
-    //ID3D12DescriptorHeap* ppHeaps[] = { m_srvHeap.Get() };
-    //m_commandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
-    //ppHeaps[0] = m_cbvHeap.Get();
-    //m_commandList->SetDescriptorHeaps(1, ppHeaps);
-    // Bind root descriptor tables
     cbaStack.resetStackIndex(0);
-    texture.bind(m_commandList.Get(), 1);
-   // m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
-
-
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
 
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     // Indicate that the back buffer will be used as a render target.
     CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_commandList->ResourceBarrier(1, &resourceBarrier);
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     m_commandList->ResourceBarrier(1, &resourceBarrier);
+
+    m_commandList->RSSetViewports(1, &m_viewport);
+    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
@@ -421,12 +446,14 @@ void Renderer::PopulateCommandList()
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    
 
+    
     //mConstantBufferAccessors[0].bind(m_commandList.Get());
     //ppHeaps[0] =  m_cbvHeap.Get();
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
-    
+
+    m_constantBufferData.color = gVector4ColorGreen;
     for (int i = 0; i < 20; i++)
     {
         for (int j = 0; j < 20; j++)
@@ -435,9 +462,21 @@ void Renderer::PopulateCommandList()
             ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
             ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
             ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            m_commandList->SetPipelineState(mPipeline.pPipelineState);
+            m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+            texture.bind(m_commandList.Get(), 1);
             m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-            cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+            cbaStack.updateAndBindtCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
             mSphereVB.draw(m_commandList.Get());
+
+
+			m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+			m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+			cbaStack.bindCurrentAccessor(0, m_commandList.Get(), 0);
+			mCubeWireFrameVB.draw(m_commandList.Get());
+			cbaStack.incrementStackIndex(0);
         }
     }
     //mConstantBufferAccessors[400].bind(m_commandList.Get());

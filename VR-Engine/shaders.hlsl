@@ -23,11 +23,11 @@ struct PSInput
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
 
-PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD)
 {
     PSInput result;
 
-    result.position = mul(position, mvp);
+    result.position = mul(float4(position, 1.0f), mvp);
     result.uv = uv;
 
     return result;
