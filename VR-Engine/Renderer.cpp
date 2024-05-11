@@ -236,9 +236,11 @@ void Renderer::LoadAssets()
     mSphereVB = VertexBuffer::createSphere(m_device.Get());
 
     //create constant buffer
-    for(int i = 0; i<400; i++)
-        mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
-    mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+    //for(int i = 0; i<400; i++)
+    //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+    //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+    cbaStack = ConstantBufferAccessorStack(3);
+    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(SceneConstantBuffer), 500);
 
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -247,7 +249,18 @@ void Renderer::LoadAssets()
       // prematurely destroyed.
 
     ComPtr<ID3D12Resource> textureUploadHeap;
-    texture.init(m_device.Get(), m_commandList.Get(),textureUploadHeap.Get(), dhp);
+
+    // Copy data to the intermediate upload heap and then schedule a copy 
+// from the upload heap to the Texture2D.
+    unsigned char texBytes[] = {
+        255, 255, 255, 255,
+        0,  0, 0, 255,
+        0, 0, 0, 255,
+        255, 255, 255, 255
+    };
+
+    texture.init(m_device.Get(), m_commandList.Get(),textureUploadHeap.Get(), dhp,
+        2, 2, texBytes);
 
     //create dsv
     // Create the depth stencil view.
@@ -301,11 +314,11 @@ void Renderer::LoadAssets()
         WaitForGpu();
     }
 
-    ST_Matrix4 model = sphereTraceMatrixScale(ST_VECTOR3(50, 50, 50));
-    ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-    ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-    mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
+    //ST_Matrix4 model = sphereTraceMatrixScale(ST_VECTOR3(50, 50, 50));
+    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+    //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+    //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
 }
 
 
@@ -319,18 +332,18 @@ void Renderer::OnUpdate()
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
     timer.update();
-    for (int i = 0; i < 20; i++)
-    {
-        for (int j = 0; j < 20; j++)
-        {
-            int index = i * 20 + j;
-            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
-            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-            mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
-        }
-    }
+    //for (int i = 0; i < 20; i++)
+    //{
+    //    for (int j = 0; j < 20; j++)
+    //    {
+    //        int index = i * 20 + j;
+    //        ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
+    //        ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+    //        ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    //        m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+    //        mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
+    //    }
+    //}
 }
 
 // Render the scene.
@@ -381,6 +394,7 @@ void Renderer::PopulateCommandList()
     //ppHeaps[0] = m_cbvHeap.Get();
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
     // Bind root descriptor tables
+    cbaStack.resetStackIndex(0);
     texture.bind(m_commandList.Get(), 1);
    // m_commandList->SetGraphicsRootDescriptorTable(1, m_srvHeap->GetGPUDescriptorHandleForHeapStart());
 
@@ -409,7 +423,7 @@ void Renderer::PopulateCommandList()
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-    mConstantBufferAccessors[0].bind(m_commandList.Get());
+    //mConstantBufferAccessors[0].bind(m_commandList.Get());
     //ppHeaps[0] =  m_cbvHeap.Get();
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
     
@@ -418,12 +432,16 @@ void Renderer::PopulateCommandList()
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
-            mConstantBufferAccessors[index].bind(m_commandList.Get());
+            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
+            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+            cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
             mSphereVB.draw(m_commandList.Get());
         }
     }
-    mConstantBufferAccessors[400].bind(m_commandList.Get());
-    mPlaneVB.draw(m_commandList.Get());
+    //mConstantBufferAccessors[400].bind(m_commandList.Get());
+    //mPlaneVB.draw(m_commandList.Get());
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_commandList->ResourceBarrier(1, &resourceBarrier);

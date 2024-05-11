@@ -1,5 +1,6 @@
 #pragma once
 #include "stdafx.h"
+#include <map>
 
 struct ConstantBufferAccessor
 {
@@ -49,8 +50,105 @@ struct ConstantBufferAccessor
         memcpy(m_pCbvDataBegin, pConstantBufferData, mSizeofConstantBufferData);
     }
 
-    void bind(ID3D12GraphicsCommandList* pCommandList)
+    void bind(ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
     {
-        pCommandList->SetGraphicsRootDescriptorTable(0, gpuDescriptorHandle);
+        pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuDescriptorHandle);
+    }
+};
+
+
+struct ConstantBufferAccessorStack
+{
+    // For each constant buffer type, we will have a stack
+    std::vector<UINT> stackIndices;
+    std::vector<std::vector<ConstantBufferAccessor>> cbaStacks;
+    UINT numStacks;
+    UINT size;
+
+
+
+    ConstantBufferAccessorStack(UINT size)
+    {
+        this->size = size;
+        stackIndices = std::vector<UINT>(size);
+        cbaStacks = std::vector<std::vector<ConstantBufferAccessor>>(size);
+        numStacks = 0;
+    }
+
+    ConstantBufferAccessorStack() : ConstantBufferAccessorStack(5)
+    {
+
+    }
+
+    ConstantBufferAccessorStack& operator=(const ConstantBufferAccessorStack& other) 
+    {
+        this->cbaStacks = other.cbaStacks;
+        this->cbaStacks.resize(other.size);
+        this->stackIndices = other.stackIndices;
+        this->stackIndices.resize(other.size);
+        this->size = other.size;
+        this->numStacks = other.numStacks;
+        return *this;
+    }
+
+    UINT createStack(ID3D12Device* pDevice, DescriptorHandleProvider& dhp,  UINT sizeofConstantBufferData, UINT numAccessors)
+    {
+        if (numStacks < size)
+        {
+            UINT stackIndex = numStacks;
+            cbaStacks[stackIndex] = std::vector<ConstantBufferAccessor>(numAccessors);
+            stackIndices[stackIndex] = 0;
+            char* data = (char*)malloc(sizeofConstantBufferData);
+            for (int i = 0; i < numAccessors; i++)
+            {
+                cbaStacks[stackIndex][i].init(pDevice, dhp, data, sizeofConstantBufferData);
+            }
+            numStacks++;
+            return stackIndex;
+        }
+        return -1;
+    }
+
+    void updateCurrentAccessor(UINT stackIndex, void* pConstantBufferData)
+    {
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
+    }
+
+    void bindCurrentAccessor(UINT stackIndex, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    {
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+    }
+
+    void incrementStackIndex(UINT stackIndex)
+    {
+        UINT curIndex = stackIndices[stackIndex];
+        if (curIndex < cbaStacks[stackIndex].size() - 1)
+        {
+            stackIndices[stackIndex]++;
+        }
+    }
+
+    void updateBindAndIncrementCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    {
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+        UINT curIndex = stackIndices[stackIndex];
+        if (curIndex < cbaStacks[stackIndex].size() - 1)
+        {
+            stackIndices[stackIndex]++;
+        }
+    }
+
+    void resetStackIndex(UINT stackIndex)
+    {
+        stackIndices[stackIndex] = 0;
+    }
+
+    void resetAllStackIndices()
+    {
+        for (int i = 0; i < numStacks; i++)
+        {
+            stackIndices[i] = 0;
+        }
     }
 };

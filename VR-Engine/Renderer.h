@@ -23,9 +23,9 @@ using namespace DirectX;
 using Microsoft::WRL::ComPtr;
 
 #include "Pipeline.h"
-#include "VertexBuffer.h"
 #include "DescriptorHandleProvider.h"
 #include "ConstantBuffer.h"
+#include "VertexBuffer.h"
 #include "Time.h"
 
 
@@ -55,7 +55,8 @@ struct Texture
     ID3D12Resource* m_texture;
     D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
 
-    void init(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* textureUploadHeap, DescriptorHandleProvider& dhp)
+    void init(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* textureUploadHeap, DescriptorHandleProvider& dhp,
+        UINT texWidth, UINT texHeight, unsigned char* texBytes)
     {
         // Create the texture.
         {
@@ -63,8 +64,8 @@ struct Texture
             D3D12_RESOURCE_DESC textureDesc = {};
             textureDesc.MipLevels = 1;
             textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            textureDesc.Width = 2;
-            textureDesc.Height = 2;
+            textureDesc.Width = texWidth;
+            textureDesc.Height = texHeight;
             textureDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
             textureDesc.DepthOrArraySize = 1;
             textureDesc.SampleDesc.Count = 1;
@@ -93,19 +94,12 @@ struct Texture
                 nullptr,
                 IID_PPV_ARGS(&textureUploadHeap)));
 
-            // Copy data to the intermediate upload heap and then schedule a copy 
-            // from the upload heap to the Texture2D.
-            std::vector<UINT8> texture = {
-                255, 255, 255, 255,
-                0,  0, 0, 255,
-                0, 0, 0, 255,
-                255, 255, 255, 255
-            };
+
 
             D3D12_SUBRESOURCE_DATA textureData = {};
-            textureData.pData = &texture[0];
-            textureData.RowPitch = 2 * 4;
-            textureData.SlicePitch = textureData.RowPitch * 2;
+            textureData.pData = texBytes;
+            textureData.RowPitch = texWidth * 4;
+            textureData.SlicePitch = textureData.RowPitch * texHeight;
 
             UpdateSubresources(pCommandList, m_texture, textureUploadHeap, 0, 0, 1, &textureData);
             CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_texture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -193,7 +187,8 @@ private:
     VertexBuffer mCubeVB;
     VertexBuffer mPlaneVB;
     VertexBuffer mSphereVB;
-    ConstantBufferAccessor mConstantBufferAccessors[500];
+    //ConstantBufferAccessor mConstantBufferAccessors[500];
+    ConstantBufferAccessorStack cbaStack;
 
     // Synchronization objects.
     UINT m_frameIndex;
