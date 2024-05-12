@@ -150,7 +150,6 @@
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceTag.c" />
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="Win32Application.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
@@ -183,7 +182,6 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Time.h" />
     <ClInclude Include="VertexBuffer.h" />
-    <ClInclude Include="Win32Application.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DefaultShaders.hlsl">

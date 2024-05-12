@@ -12,6 +12,8 @@
 #include "stdafx.h"
 #include "DXSample.h"
 
+extern HWND hwnd;
+
 
 using namespace Microsoft::WRL;
 
@@ -110,7 +112,7 @@ void DXSample::GetHardwareAdapter(
 void DXSample::SetCustomWindowText(LPCWSTR text)
 {
     std::wstring windowText = m_title + L": " + text;
-    SetWindowText(Win32Application::GetHwnd(), windowText.c_str());
+    SetWindowText(hwnd, windowText.c_str());
 }
 
 // Helper function for parsing any supplied command line args.

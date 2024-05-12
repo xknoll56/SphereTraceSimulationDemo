@@ -12,7 +12,7 @@
 #include "stdafx.h"
 #include "Renderer.h"
 
-
+extern HWND hwnd;
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
     DXSample(width, height, name),
@@ -96,7 +96,7 @@ void Renderer::LoadPipeline()
     ComPtr<IDXGISwapChain1> swapChain;
     ThrowIfFailed(factory->CreateSwapChainForHwnd(
         m_commandQueue.Get(),        // Swap chain needs the queue so that it can force a flush on it.
-        Win32Application::GetHwnd(),
+        hwnd,
         &swapChainDesc,
         nullptr,
         nullptr,
@@ -104,7 +104,7 @@ void Renderer::LoadPipeline()
         ));
 
     // This sample does not support fullscreen transitions.
-    ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+    ThrowIfFailed(factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
 
     ThrowIfFailed(swapChain.As(&m_swapChain));
     m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
