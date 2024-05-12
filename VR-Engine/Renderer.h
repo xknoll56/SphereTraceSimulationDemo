@@ -27,6 +27,7 @@ using Microsoft::WRL::ComPtr;
 #include "ConstantBuffer.h"
 #include "VertexBuffer.h"
 #include "Time.h"
+#include "Camera.h"
 
 
 
@@ -195,6 +196,7 @@ private:
     HANDLE m_fenceEvent;
     ComPtr<ID3D12Fence> m_fence;
     UINT64 m_fenceValues[FrameCount];
+    Camera camera;
 
     Time timer;
 

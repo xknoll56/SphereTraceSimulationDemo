@@ -127,7 +127,7 @@ void Renderer::LoadPipeline()
         //cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         //cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         //ThrowIfFailed(m_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&m_cbvHeap)));
-        dhp.init(m_device.Get(), 1000);
+        dhp.init(m_device.Get(), 10000);
 
         //// Describe and create a shader resource view (SRV) heap for the texture.
         //D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
@@ -223,7 +223,7 @@ void Renderer::LoadAssets()
         };
 
 
-        mPipeline.init(m_device.Get(), mRootSigniture, L"shaders.hlsl", L"shaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        mPipeline.init(m_device.Get(), mRootSigniture, L"DefaultShaders.hlsl", L"DefaultShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     }
 
     // Create the root signiture for the wire frame pipeline
@@ -349,11 +349,15 @@ void Renderer::LoadAssets()
         WaitForGpu();
     }
 
+    sphereTraceAllocatorInitialize();
+
     //ST_Matrix4 model = sphereTraceMatrixScale(ST_VECTOR3(50, 50, 50));
     //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
+    camera = Camera::cameraConstructDefault();
+    camera.cameraSetViewMatrix();
 }
 
 
@@ -460,7 +464,8 @@ void Renderer::PopulateCommandList()
         {
             int index = i * 20 + j;
             ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
-            ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+            //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
+            ST_Matrix4 view = camera.viewMatrix;
             ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
             m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             m_commandList->SetPipelineState(mPipeline.pPipelineState);

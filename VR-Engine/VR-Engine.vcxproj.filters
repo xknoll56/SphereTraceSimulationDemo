@@ -176,9 +176,12 @@
     <ClInclude Include="Time.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders.hlsl">
+    <FxCompile Include="DefaultShaders.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
     <FxCompile Include="WireFrameShaders.hlsl">
