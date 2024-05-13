@@ -519,7 +519,7 @@ void Renderer::MoveToNextFrame()
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-void Renderer::drawSphere(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale)
+void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type)
 {
 
     ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position), 
@@ -530,7 +530,19 @@ void Renderer::drawSphere(ST_Vector3 position, ST_Quaternion rotation, ST_Vector
     texture.bind(m_commandList.Get(), 1);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    mSphereVB.draw(m_commandList.Get());
+    switch (type)
+    {
+    case PRIMITIVE_PLANE:
+        mPlaneVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_BOX:
+        mCubeVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_SPHERE:
+        mSphereVB.draw(m_commandList.Get());
+        break;
+    }
+    
 }
 
 void Renderer::drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color)
@@ -571,9 +583,12 @@ void Scene::updateCamera(float dt)
         camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * dt;
         camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * dt;
     }
-    camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, dt * camera.lerpSpeed);
-    camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, dt * camera.lerpSpeed);
-    camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, dt * camera.lerpSpeed);
+    //camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, dt * camera.lerpSpeed);
+    //camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, dt * camera.lerpSpeed);
+    //camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, dt * camera.lerpSpeed);
+    camera.cameraPos = camera.cameraLerp;
+    camera.cameraYaw = camera.cameraLerpYaw;
+    camera.cameraPitch = camera.cameraLerpPitch;
     camera.cameraSetViewMatrix();
     camera.cameraSetRightAndFwdVectors();
 }
@@ -584,9 +599,10 @@ void Scene::draw()
     {
         for (int j = 0; j < 40; j++)
         {
-            pRenderer->drawSphere(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One);
+            pRenderer->drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_BOX);
             pRenderer->drawBoxFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen);
         }
     }
+    pRenderer->drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), PRIMITIVE_PLANE);
     
 }

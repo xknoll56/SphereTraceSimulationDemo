@@ -33,6 +33,15 @@ using Microsoft::WRL::ComPtr;
 
 class Renderer;
 
+
+enum PrimitiveType
+{
+    PRIMITIVE_PLANE = 0,
+    PRIMITIVE_BOX,
+    PRIMITIVE_SPHERE,
+    PRIMITIVE_CYLINDER
+};
+
 struct Scene
 {
     Camera camera;
@@ -130,7 +139,7 @@ public:
 
     Scene scene;
     // Draw methods
-    void drawSphere(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale);
+    void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
     void drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color);
 };
 
