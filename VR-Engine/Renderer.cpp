@@ -175,12 +175,14 @@ void Renderer::LoadAssets()
     // Create a root signature consisting of a descriptor table with a single CBV.
     {
 
-         CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-         CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+         CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
+         CD3DX12_ROOT_PARAMETER1 rootParameters[3];
          ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+         ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
          rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+         rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -210,7 +212,7 @@ void Renderer::LoadAssets()
         //CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
         //rootSignatureDesc.Init_1_1(2, rootParameters, 1, &sampler, rootSignatureFlags);
 
-        mRootSigniture.init(m_device.Get(), rootParameters, 2, rootSignatureFlags, sampler);
+        mRootSigniture.init(m_device.Get(), rootParameters, 3, rootSignatureFlags, sampler);
     }
 
     // Create the pipeline state, which includes compiling and loading shaders.
@@ -273,6 +275,7 @@ void Renderer::LoadAssets()
     mGridVB = VertexBuffer::createGrid(m_device.Get());
     mSphereWireFrameVB = VertexBuffer::createSphereWireFrame(m_device.Get());
     mLineVB = VertexBuffer::createLine(m_device.Get());
+    mCylinderVB = VertexBuffer::createCylinder(m_device.Get());
 
     //create constant buffer
     //for(int i = 0; i<400; i++)
@@ -280,6 +283,7 @@ void Renderer::LoadAssets()
     //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
     cbaStack = ConstantBufferAccessorStack(3);
     UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(SceneConstantBuffer), 4000);
+    UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 4000);
 
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -415,7 +419,7 @@ void Renderer::PopulateCommandList()
     // Set necessary state.
     
     dhp.bindDescriptorHeap(m_commandList.Get());
-    cbaStack.resetStackIndex(0);
+    cbaStack.resetAllStackIndices();
 
 
 
@@ -486,7 +490,7 @@ void Renderer::MoveToNextFrame()
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type)
+void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type)
 {
 
     ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position), 
@@ -494,9 +498,10 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetPipelineState(mPipeline.pPipelineState);
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    texture.bind(m_commandList.Get(), 1);
+    texture.bind(m_commandList.Get(), 2);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&gVector4ColorWhite, m_commandList.Get(), 1);
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -508,9 +513,40 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     case PRIMITIVE_SPHERE:
         mSphereVB.draw(m_commandList.Get());
         break;
+    case PRIMITIVE_CYLINDER:
+        mCylinderVB.draw(m_commandList.Get());
     }
     
 }
+
+void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
+{
+
+    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->SetPipelineState(mPipeline.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    cbaStack.updateBindAndIncrementCurrentAccessor(1, &color, m_commandList.Get(), 1);
+    switch (type)
+    {
+    case PRIMITIVE_PLANE:
+        mPlaneVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_BOX:
+        mCubeVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_SPHERE:
+        mSphereVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_CYLINDER:
+        mCylinderVB.draw(m_commandList.Get());
+    }
+
+}
+
 
 void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
 {

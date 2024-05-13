@@ -393,4 +393,130 @@ struct VertexBuffer
         vb.init(pDevice, verts, sizeof(verts), 3 * sizeof(float));
         return vb;
     }
+
+    static VertexBuffer createCylinder(ID3D12Device* pDevice)
+    {
+        float verts[2880];
+        int segments = 30;
+        int rings = 30;
+        int index = 0;
+        int offset = 0;
+        for (int i = 0; i < segments; i++)
+        {
+
+            index = offset * 96;
+            float theta = (float)i * M_PI / (float)segments * 2.0f;
+            float theta1 = (float)(i + 1) * M_PI / (float)segments * 2.0f;
+
+            verts[index] = 0.5f * cosf(theta);
+            verts[index + 1] = 0.5f;
+            verts[index + 2] = 0.5f * sinf(theta);
+            verts[index + 3] = 0.0f;
+            verts[index + 4] = 1.0f;
+            verts[index + 5] = 0.0f;
+            verts[index + 6] = 0.5f * (1.0f + cosf(theta));
+            verts[index + 7] = 0.5f * (1.0f + sinf(theta));
+            verts[index + 8] = 0.0;
+            verts[index + 9] = 0.5f;
+            verts[index + 10] = 0.0;
+            verts[index + 11] = 0.0f;
+            verts[index + 12] = 1.0f;
+            verts[index + 13] = 0.0f;
+            verts[index + 14] = 0.5f;
+            verts[index + 15] = 0.5f;
+            verts[index + 16] = 0.5f * cosf(theta1);
+            verts[index + 17] = 0.5f;
+            verts[index + 18] = 0.5f * sinf(theta1);
+            verts[index + 19] = 0.0f;
+            verts[index + 20] = 1.0f;
+            verts[index + 21] = 0.0f;
+            verts[index + 22] = 0.5f * (1.0f + cosf(theta1));
+            verts[index + 23] = 0.5f * (1.0f + sinf(theta1));
+
+            ST_Vector3 v1 = { 0.5f * cosf(theta), 0.5f, 0.5f * sinf(theta) };
+            ST_Vector3 v2 = { 0.5f * cosf(theta1), 0.5f, 0.5f * sinf(theta1) };
+            ST_Vector3 v3 = { 0.5f * cosf(theta), -0.5f, 0.5f * sinf(theta) };
+            ST_Vector3 normal = sphereTraceVector3Normalize(sphereTraceVector3Cross(sphereTraceVector3Subtract(v2, v1), sphereTraceVector3Subtract(v3, v1)));
+
+            verts[index + 24] = 0.5f * cosf(theta);
+            verts[index + 25] = -0.5f;
+            verts[index + 26] = 0.5f * sinf(theta);
+            verts[index + 27] = normal.x;
+            verts[index + 28] = normal.y;
+            verts[index + 29] = normal.z;
+            verts[index + 30] = ((float)i / segments);
+            verts[index + 31] = 0.0f;
+            verts[index + 32] = 0.5f * cosf(theta);
+            verts[index + 33] = 0.5f;
+            verts[index + 34] = 0.5f * sinf(theta);
+            verts[index + 35] = normal.x;
+            verts[index + 36] = normal.y;
+            verts[index + 37] = normal.z;
+            verts[index + 38] = ((float)i / segments);
+            verts[index + 39] = 1.0f;
+            verts[index + 40] = 0.5f * cosf(theta1);
+            verts[index + 41] = 0.5f;
+            verts[index + 42] = 0.5f * sinf(theta1);
+            verts[index + 43] = normal.x;
+            verts[index + 44] = normal.y;
+            verts[index + 45] = normal.z;
+            verts[index + 46] = ((float)(i + 1.0f) / segments);
+            verts[index + 47] = 1.0f;
+
+            verts[index + 48] = 0.5f * cosf(theta);
+            verts[index + 49] = -0.5f;
+            verts[index + 50] = 0.5f * sinf(theta);
+            verts[index + 51] = normal.x;
+            verts[index + 52] = normal.y;
+            verts[index + 53] = normal.z;
+            verts[index + 54] = ((float)i / segments);
+            verts[index + 55] = 0.0f;
+            verts[index + 56] = 0.5f * cosf(theta1);
+            verts[index + 57] = 0.5f;
+            verts[index + 58] = 0.5f * sinf(theta1);
+            verts[index + 59] = normal.x;
+            verts[index + 60] = normal.y;
+            verts[index + 61] = normal.z;
+            verts[index + 62] = ((float)(i + 1.0f) / segments);
+            verts[index + 63] = 1.0f;
+            verts[index + 64] = 0.5f * cosf(theta1);
+            verts[index + 65] = -0.5f;
+            verts[index + 66] = 0.5f * sinf(theta1);
+            verts[index + 67] = normal.x;
+            verts[index + 68] = normal.y;
+            verts[index + 69] = normal.z;
+            verts[index + 70] = ((float)(i + 1.0f) / segments);
+            verts[index + 71] = 0.0f;
+
+            verts[index + 72] = 0.5f * cosf(theta1);
+            verts[index + 73] = -0.5f;
+            verts[index + 74] = 0.5f * sinf(theta1);
+            verts[index + 75] = 0.0f;
+            verts[index + 76] = -1.0f;
+            verts[index + 77] = 0.0f;
+            verts[index + 78] = 0.5f * (1.0f + cosf(theta1));
+            verts[index + 79] = 0.5f * (1.0f + sinf(theta1));
+            verts[index + 80] = 0.0;
+            verts[index + 81] = -0.5f;
+            verts[index + 82] = 0.0;
+            verts[index + 83] = 0.0f;
+            verts[index + 84] = -1.0f;
+            verts[index + 85] = 0.0f;
+            verts[index + 86] = 0.5f;
+            verts[index + 87] = 0.5f;
+            verts[index + 88] = 0.5f * cosf(theta);
+            verts[index + 89] = -0.5f;
+            verts[index + 90] = 0.5f * sinf(theta);
+            verts[index + 91] = 0.0f;
+            verts[index + 92] = -1.0f;
+            verts[index + 93] = 0.0f;
+            verts[index + 94] = 0.5f * (1.0f + cosf(theta));
+            verts[index + 95] = 0.5f * (1.0f + sinf(theta));
+
+            offset++;
+        }
+        VertexBuffer vb;
+        vb.init(pDevice,verts, 2880 * sizeof(float), 8 * sizeof(float));
+        return vb;
+    }
 };

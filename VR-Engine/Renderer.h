@@ -42,6 +42,17 @@ public:
     virtual void OnRender();
     virtual void OnDestroy();
 
+    //public resources
+    Texture texture;
+    VertexBuffer mCubeVB;
+    VertexBuffer mCubeWireFrameVB;
+    VertexBuffer mPlaneVB;
+    VertexBuffer mSphereWireFrameVB;
+    VertexBuffer mSphereVB;
+    VertexBuffer mGridVB;
+    VertexBuffer mLineVB;
+    VertexBuffer mCylinderVB;
+
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
     // number of frames that will be queued to the GPU at a time, as well as the number
@@ -89,16 +100,9 @@ private:
     //ComPtr<ID3D12Resource> m_constantBuffer;
     //UINT8* m_pCbvDataBegin;
     SceneConstantBuffer m_constantBufferData;
-    Texture texture;
     
     ComPtr<ID3D12Resource> m_depthStencil;
-    VertexBuffer mCubeVB;
-    VertexBuffer mCubeWireFrameVB;
-    VertexBuffer mPlaneVB;
-    VertexBuffer mSphereWireFrameVB;
-    VertexBuffer mSphereVB;
-    VertexBuffer mGridVB;
-    VertexBuffer mLineVB;
+
     //ConstantBufferAccessor mConstantBufferAccessors[500];
     ConstantBufferAccessorStack cbaStack;
     ST_Matrix4 projection;
@@ -123,7 +127,8 @@ public:
 
     Scene scene;
     // Draw methods
-    void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
+    void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type);
+    void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };

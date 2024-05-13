@@ -46,8 +46,9 @@ void Scene::draw()
     {
         for (int j = 0; j < 5; j++)
         {
-            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
-            Renderer::instance.drawWireFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_SPHERE);
+            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_CYLINDER);
+            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, Renderer::instance.texture, PRIMITIVE_CYLINDER);
+            //Renderer::instance.drawWireFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_SPHERE);
         }
     }
     Renderer::instance.drawLine(gVector3Zero, ST_VECTOR3(10, 10, 10), gVector4ColorBlue);

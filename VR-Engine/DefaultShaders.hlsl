@@ -14,6 +14,11 @@ cbuffer SceneConstantBuffer : register(b0)
     float4x4 mvp;
 };
 
+cbuffer PixelShaderConstants : register(b1)
+{
+    float4 color;
+}
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -48,31 +53,8 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    //return float4(1, 1, 1, 1);
     //return float4(input.uv.x, input.uv.y, 0, 1);
     return g_texture.Sample(g_sampler, input.uv);
+    //return color;
 }
-
-//struct PSInput
-//{
-//    float4 position : SV_POSITION;
-//    float2 color : TEXCOORD;
-//};
-
-//Texture2D g_texture : register(t0);
-//SamplerState g_sampler : register(s0);
-
-//PSInput VSMain(float4 position : POSITION, float2 color : TEXCOORD)
-//{
-//    PSInput result;
-
-//    result.position = position + offset;
-//    result.color = color;
-
-//    return result;
-//}
-
-//float4 PSMain(PSInput input) : SV_TARGET
-//{
-//    return g_texture.Sample(g_sampler, input.color);
-
-//}
