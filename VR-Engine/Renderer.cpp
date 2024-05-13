@@ -12,7 +12,7 @@
 #include "stdafx.h"
 #include "Renderer.h"
 
-
+Renderer Renderer::instance(1280, 720, L"D3D12");
 extern HWND hwnd;
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
@@ -359,7 +359,6 @@ void Renderer::LoadAssets()
     //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
     scene.camera = Camera::cameraConstructDefault();
     scene.camera.cameraSetViewMatrix();
-    scene.pRenderer = this;
     projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
 }
 
@@ -561,21 +560,24 @@ void Renderer::drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vect
 
 void Scene::updateCamera(float dt)
 {
+    float boost = 1.0f;
+    if (Input::keys[VK_SHIFT])
+        boost = 3.0f;
     if (Input::keys[KEY_W])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * dt), camera.cameraLerp);
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * dt*boost), camera.cameraLerp);
     }
     if (Input::keys[KEY_A])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * dt), camera.cameraLerp);
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
     }
     if (Input::keys[KEY_S])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * dt), camera.cameraLerp);
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
     }
     if (Input::keys[KEY_D])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * dt), camera.cameraLerp);
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
     }
 
     if (Input::mouse[MOUSE_RIGHT])
@@ -595,14 +597,14 @@ void Scene::updateCamera(float dt)
 
 void Scene::draw()
 {
-    for (int i = 0; i < 40; i++)
+    for (int i = 0; i < 5; i++)
     {
-        for (int j = 0; j < 40; j++)
+        for (int j = 0; j < 5; j++)
         {
-            pRenderer->drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_BOX);
-            pRenderer->drawBoxFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen);
+            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_BOX);
+            Renderer::instance.drawBoxFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen);
         }
     }
-    pRenderer->drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), PRIMITIVE_PLANE);
+    Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), PRIMITIVE_PLANE);
     
 }

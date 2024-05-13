@@ -45,7 +45,6 @@ enum PrimitiveType
 struct Scene
 {
     Camera camera;
-    Renderer* pRenderer;
 
     void updateCamera(float dt);
 
@@ -136,6 +135,7 @@ private:
 
 public:
 
+    static Renderer instance;
 
     Scene scene;
     // Draw methods

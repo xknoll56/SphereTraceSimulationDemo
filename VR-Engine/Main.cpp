@@ -101,11 +101,11 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-    Renderer sample(1280, 720, L"D3D12");
+    //Renderer sample(1280, 720, L"D3D12");
     // Parse the command line parameters
     int argc;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    sample.ParseCommandLineArgs(argv, argc);
+    Renderer::instance.ParseCommandLineArgs(argv, argc);
     LocalFree(argv);
 
     AllocConsole();
@@ -121,13 +121,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     windowClass.lpszClassName = L"DXSampleClass";
     RegisterClassEx(&windowClass);
 
-    RECT windowRect = { 0, 0, static_cast<LONG>(sample.GetWidth()), static_cast<LONG>(sample.GetHeight()) };
+    RECT windowRect = { 0, 0, static_cast<LONG>(Renderer::instance.GetWidth()), static_cast<LONG>(Renderer::instance.GetHeight()) };
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
     // Create the window and store a handle to it.
     hwnd = CreateWindow(
         windowClass.lpszClassName,
-        sample.GetTitle(),
+        Renderer::instance.GetTitle(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -139,7 +139,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         nullptr);
 
     // Initialize the sample. OnInit is defined in each child-implementation of DXSample.
-    sample.OnInit();
+    Renderer::instance.OnInit();
     inputInitialize();
 
     ShowWindow(hwnd, nCmdShow);
@@ -160,11 +160,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
         windowUpdateCursor(hwnd);
 
-        sample.OnUpdate();
-        sample.OnRender();
+        Renderer::instance.OnUpdate();
+        Renderer::instance.OnRender();
     }
 
-    sample.OnDestroy();
+    Renderer::instance.OnDestroy();
 
     // Return this part of the WM_QUIT message to Windows.
     return static_cast<char>(msg.wParam);
