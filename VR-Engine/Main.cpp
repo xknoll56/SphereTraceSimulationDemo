@@ -108,6 +108,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
     sample.ParseCommandLineArgs(argv, argc);
     LocalFree(argv);
 
+    AllocConsole();
+    freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+
     // Initialize the window class.
     WNDCLASSEX windowClass = { 0 };
     windowClass.cbSize = sizeof(WNDCLASSEX);
@@ -149,7 +152,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         inputReset();
 
         // Process any messages in the queue.
-        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        while (PeekMessageW(&msg, 0, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -171,17 +174,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 // Main message handler for the sample.
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    DXSample* pSample = reinterpret_cast<DXSample*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    //DXSample* pSample = reinterpret_cast<DXSample*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
 
     switch (message)
     {
-    case WM_CREATE:
-    {
-        // Save the DXSample* passed in to CreateWindow.
-        LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
-    }
-    return 0;
+    //case WM_CREATE:
+    //{
+    //    // Save the DXSample* passed in to CreateWindow.
+    //    LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
+    //    SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+    //}
+    //return 0;
 
     case WM_KEYDOWN:
     {
