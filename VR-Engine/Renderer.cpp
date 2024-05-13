@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 #include "Renderer.h"
+#include "Input.h"
 
 extern HWND hwnd;
 
@@ -364,25 +365,35 @@ void Renderer::LoadAssets()
 // Update frame-based values.
 void Renderer::OnUpdate()
 {
-
-    //ST_Matrix4 model = gMatrix4Identity;
-    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-    //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-    //mConstantBufferAccessors[0].updateConstantBufferData(&m_constantBufferData);
     timer.update();
-    //for (int i = 0; i < 20; i++)
-    //{
-    //    for (int j = 0; j < 20; j++)
-    //    {
-    //        int index = i * 20 + j;
-    //        ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
-    //        ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-    //        ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    //        m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-    //        mConstantBufferAccessors[index].updateConstantBufferData(&m_constantBufferData.mvp);
-    //    }
-    //}
+
+    if (Input::keys[KEY_W])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_A])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_S])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_D])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
+    }
+
+    if (Input::mouse[MOUSE_RIGHT])
+    {
+        camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * timer.dt;
+        camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * timer.dt;
+    }
+    camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, timer.dt * camera.lerpSpeed);
+    camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, timer.dt * camera.lerpSpeed);
+    camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, timer.dt * camera.lerpSpeed);
+    camera.cameraSetViewMatrix();
+    camera.cameraSetRightAndFwdVectors();
 }
 
 // Render the scene.
