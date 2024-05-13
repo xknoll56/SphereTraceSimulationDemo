@@ -30,26 +30,7 @@ using Microsoft::WRL::ComPtr;
 #include "Camera.h"
 #include "Texture.h"
 #include "Input.h"
-
-class Renderer;
-
-
-enum PrimitiveType
-{
-    PRIMITIVE_PLANE = 0,
-    PRIMITIVE_BOX,
-    PRIMITIVE_SPHERE,
-    PRIMITIVE_CYLINDER
-};
-
-struct Scene
-{
-    Camera camera;
-
-    void updateCamera(float dt);
-
-    void draw();
-};
+#include "Scene.h"
 
 class Renderer : public DXSample
 {
@@ -114,7 +95,10 @@ private:
     VertexBuffer mCubeVB;
     VertexBuffer mCubeWireFrameVB;
     VertexBuffer mPlaneVB;
+    VertexBuffer mSphereWireFrameVB;
     VertexBuffer mSphereVB;
+    VertexBuffer mGridVB;
+    VertexBuffer mLineVB;
     //ConstantBufferAccessor mConstantBufferAccessors[500];
     ConstantBufferAccessorStack cbaStack;
     ST_Matrix4 projection;
@@ -140,7 +124,8 @@ public:
     Scene scene;
     // Draw methods
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
-    void drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color);
+    void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
+    void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };
 
 

@@ -144,6 +144,36 @@ struct VertexBuffer
         return vb;
     }
 
+    static VertexBuffer createGrid(ID3D12Device* pDevice)
+    {
+        VertexBuffer vb;
+        float verts[1212];
+        int index = 0;
+        int offset = 0;
+        for (int i = -50; i <= 50; i++)
+        {
+            index = offset * 12;
+
+            verts[index] = i;
+            verts[index + 1] = 0.0f;
+            verts[index + 2] = -50.0f;
+            verts[index + 3] = i;
+            verts[index + 4] = 0.0f;
+            verts[index + 5] = 50.0f;
+
+            verts[index + 6] = -50.0f;
+            verts[index + 7] = 0.0f;
+            verts[index + 8] = i;
+            verts[index + 9] = 50.0f;
+            verts[index + 10] = 0.0f;
+            verts[index + 11] = i;
+
+            offset++;
+        }
+        vb.init(pDevice, (float*)verts, 1212 * sizeof(float), sizeof(ST_Vector3));
+        return vb;
+    }
+
     static VertexBuffer createCubeWireFrame(ID3D12Device* pDevice)
     {
         VertexBuffer vb;
@@ -182,6 +212,55 @@ struct VertexBuffer
             };
             vb.init(pDevice, (float*)cubeVertexData, sizeof(cubeVertexData), sizeof(ST_Vector3));
         }
+        return vb;
+    }
+
+    static VertexBuffer createSphereWireFrame(ID3D12Device* pDevice)
+    {
+        VertexBuffer vb;
+        float* verts = (float*)malloc(sizeof(float) * 7200);
+        memset(verts, 0, 7200 * sizeof(float));
+        int segments = 90;
+        int rings = 30;
+        int index = 0;
+        int offset = 0;
+        for (int i = 0; i < segments; i++)
+        {
+            index = offset * 18;
+            float theta = (float)i * 2.0f * M_PI / (float)segments;
+            float theta1 = (float)(i + 1) * 2.0f * M_PI / (float)segments;
+
+            //xz plane
+            verts[index] = 0.5f * cos(theta);
+            verts[index + 1] = 0;
+            verts[index + 2] = 0.5f * sin(theta);
+
+            verts[index + 3] = 0.5f * cos(theta1);
+            verts[index + 4] = 0;
+            verts[index + 5] = 0.5f * sin(theta1);
+
+            //xy play
+            verts[index + 6] = 0.5f * cos(theta);
+            verts[index + 7] = 0.5f * sin(theta);
+            verts[index + 8] = 0;
+
+            verts[index + 9] = 0.5f * cos(theta1);
+            verts[index + 10] = 0.5f * sin(theta1);
+            verts[index + 11] = 0;
+
+            //yz play
+            verts[index + 12] = 0;
+            verts[index + 13] = 0.5f * cos(theta);
+            verts[index + 14] = 0.5f * sin(theta);
+
+            verts[index + 15] = 0;
+            verts[index + 16] = 0.5f * cos(theta1);
+            verts[index + 17] = 0.5f * sin(theta1);
+
+            offset++;
+        }
+        vb.init(pDevice, verts, 1620 * sizeof(float), 3 * sizeof(float));
+        free(verts);
         return vb;
     }
 
@@ -300,6 +379,18 @@ struct VertexBuffer
         //gIndexBufferSphere = indexBufferCreate(d3d11Device, indSz, indices);
         free(verts);
         //free(indices);
+        return vb;
+    }
+
+    static VertexBuffer createLine(ID3D12Device* pDevice)
+    {
+		VertexBuffer vb;
+		float verts[] = 
+        {
+	        0.0f, 0.0f, 0.0f,
+	        1.0f, 0.0f, 0.0f
+		};
+        vb.init(pDevice, verts, sizeof(verts), 3 * sizeof(float));
         return vb;
     }
 };

@@ -270,6 +270,9 @@ void Renderer::LoadAssets()
     mCubeWireFrameVB = VertexBuffer::createCubeWireFrame(m_device.Get());
     mPlaneVB = VertexBuffer::createPlane(m_device.Get());
     mSphereVB = VertexBuffer::createSphere(m_device.Get());
+    mGridVB = VertexBuffer::createGrid(m_device.Get());
+    mSphereWireFrameVB = VertexBuffer::createSphereWireFrame(m_device.Get());
+    mLineVB = VertexBuffer::createLine(m_device.Get());
 
     //create constant buffer
     //for(int i = 0; i<400; i++)
@@ -436,44 +439,9 @@ void Renderer::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-
-    
-
-    
-    //mConstantBufferAccessors[0].bind(m_commandList.Get());
-    //ppHeaps[0] =  m_cbvHeap.Get();
-    //m_commandList->SetDescriptorHeaps(1, ppHeaps);
-
-    m_constantBufferData.color = gVector4ColorGreen;
+    //Draw everything in the scene
     scene.draw();
-   // for (int i = 0; i < 20; i++)
-   // {
-   //     for (int j = 0; j < 20; j++)
-   //     {
 
-   //         //int index = i * 20 + j;
-   //         //ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
-   //         //ST_Matrix4 view = scene.camera.viewMatrix;
-   //         //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-   //         //m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-   //         //m_commandList->SetPipelineState(mPipeline.pPipelineState);
-   //         //m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-   //         //texture.bind(m_commandList.Get(), 1);
-   //         //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-   //         //cbaStack.updateAndBindtCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-   //         //mSphereVB.draw(m_commandList.Get());
-
-
-			//m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			//m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-			//m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-			//cbaStack.bindCurrentAccessor(0, m_commandList.Get(), 0);
-			//mCubeWireFrameVB.draw(m_commandList.Get());
-			//cbaStack.incrementStackIndex(0);
-   //     }
-   // }
-    //mConstantBufferAccessors[400].bind(m_commandList.Get());
-    //mPlaneVB.draw(m_commandList.Get());
     // Indicate that the back buffer will now be used to present.
     resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_commandList->ResourceBarrier(1, &resourceBarrier);
@@ -544,7 +512,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     
 }
 
-void Renderer::drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color)
+void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
 {
     ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
@@ -554,57 +522,55 @@ void Renderer::drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vect
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
     m_constantBufferData.color = color;
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-	mCubeWireFrameVB.draw(m_commandList.Get());
+    switch (type)
+    {
+    case PRIMITIVE_PLANE:
+        mGridVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_BOX:
+        mCubeWireFrameVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_SPHERE:
+        mSphereWireFrameVB.draw(m_commandList.Get());
+        break;
+    }
 }
 
-
-void Scene::updateCamera(float dt)
+void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color)
 {
-    float boost = 1.0f;
-    if (Input::keys[VK_SHIFT])
-        boost = 3.0f;
-    if (Input::keys[KEY_W])
+    ST_Vector3 dir = sphereTraceVector3Subtract(to, from);
+    float dist = sphereTraceVector3Length(dir);
+    dir = sphereTraceVector3Normalize(dir);
+    ST_Vector3 dirXZ = { dir.x, 0, dir.z };
+    dirXZ = sphereTraceVector3Normalize(dirXZ);
+    float theta = -asinf(dirXZ.z);
+    theta = dirXZ.x <= 0.0f ? (3.14159f - theta) : theta;
+    float psi = atanf(dir.y / sqrtf(dir.x * dir.x + dir.z * dir.z));
+    if (dir.x == 0.0f && dir.z == 0.0f || sphereTraceVector3NanAny(dirXZ))
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * dt*boost), camera.cameraLerp);
+        if (dir.y > 0.0f)
+            psi = 3.14159f * 0.5f;
+        else
+            psi = -3.141595f * 0.5f;
+        theta = 0.0f;
     }
-    if (Input::keys[KEY_A])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
-    }
-    if (Input::keys[KEY_S])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
-    }
-    if (Input::keys[KEY_D])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
-    }
+    ST_Matrix4 modelMatrix = sphereTraceMatrixIdentity();
+    modelMatrix = sphereTraceMatrixTranslation(from);
+    modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateY(theta));
+    modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateZ(psi));
+    modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixScale({ dist, 1, 1 }));
+    ST_Matrix4 modelView = sphereTraceMatrixMult(scene.camera.viewMatrix, modelMatrix);
+    ST_Matrix4 modelViewProjection = sphereTraceMatrixMult(projection, modelView);
 
-    if (Input::mouse[MOUSE_RIGHT])
-    {
-        camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * dt;
-        camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * dt;
-    }
-    //camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, dt * camera.lerpSpeed);
-    //camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, dt * camera.lerpSpeed);
-    //camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, dt * camera.lerpSpeed);
-    camera.cameraPos = camera.cameraLerp;
-    camera.cameraYaw = camera.cameraLerpYaw;
-    camera.cameraPitch = camera.cameraLerpPitch;
-    camera.cameraSetViewMatrix();
-    camera.cameraSetRightAndFwdVectors();
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+    m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+    m_constantBufferData.mvp = modelViewProjection;
+    m_constantBufferData.color = color;
+    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    mLineVB.draw(m_commandList.Get());
 }
 
-void Scene::draw()
-{
-    for (int i = 0; i < 5; i++)
-    {
-        for (int j = 0; j < 5; j++)
-        {
-            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_BOX);
-            Renderer::instance.drawBoxFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen);
-        }
-    }
-    Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), PRIMITIVE_PLANE);
-    
-}
+
+
+
