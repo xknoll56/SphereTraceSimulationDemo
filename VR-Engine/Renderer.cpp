@@ -11,7 +11,7 @@
 
 #include "stdafx.h"
 #include "Renderer.h"
-#include "Input.h"
+
 
 extern HWND hwnd;
 
@@ -276,7 +276,7 @@ void Renderer::LoadAssets()
     //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
     //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
     cbaStack = ConstantBufferAccessorStack(3);
-    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(SceneConstantBuffer), 500);
+    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(SceneConstantBuffer), 4000);
 
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -290,8 +290,8 @@ void Renderer::LoadAssets()
 // from the upload heap to the Texture2D.
     unsigned char texBytes[] = {
         255, 255, 255, 255,
-        0,  0, 0, 255,
-        0, 0, 0, 255,
+        50,  50, 50, 255,
+        50, 50, 50, 255,
         255, 255, 255, 255
     };
 
@@ -357,8 +357,10 @@ void Renderer::LoadAssets()
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
-    camera = Camera::cameraConstructDefault();
-    camera.cameraSetViewMatrix();
+    scene.camera = Camera::cameraConstructDefault();
+    scene.camera.cameraSetViewMatrix();
+    scene.pRenderer = this;
+    projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
 }
 
 
@@ -367,33 +369,8 @@ void Renderer::OnUpdate()
 {
     timer.update();
 
-    if (Input::keys[KEY_W])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
-    }
-    if (Input::keys[KEY_A])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
-    }
-    if (Input::keys[KEY_S])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
-    }
-    if (Input::keys[KEY_D])
-    {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * timer.dt), camera.cameraLerp);
-    }
+    scene.updateCamera(timer.dt);
 
-    if (Input::mouse[MOUSE_RIGHT])
-    {
-        camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * timer.dt;
-        camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * timer.dt;
-    }
-    camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, timer.dt * camera.lerpSpeed);
-    camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, timer.dt * camera.lerpSpeed);
-    camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, timer.dt * camera.lerpSpeed);
-    camera.cameraSetViewMatrix();
-    camera.cameraSetRightAndFwdVectors();
 }
 
 // Render the scene.
@@ -456,7 +433,7 @@ void Renderer::PopulateCommandList()
     m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
     // Record commands.
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
@@ -469,32 +446,33 @@ void Renderer::PopulateCommandList()
     //m_commandList->SetDescriptorHeaps(1, ppHeaps);
 
     m_constantBufferData.color = gVector4ColorGreen;
-    for (int i = 0; i < 20; i++)
-    {
-        for (int j = 0; j < 20; j++)
-        {
-            int index = i * 20 + j;
-            ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
-            //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-            ST_Matrix4 view = camera.viewMatrix;
-            ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            m_commandList->SetPipelineState(mPipeline.pPipelineState);
-            m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-            texture.bind(m_commandList.Get(), 1);
-            m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-            cbaStack.updateAndBindtCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-            mSphereVB.draw(m_commandList.Get());
+    scene.draw();
+   // for (int i = 0; i < 20; i++)
+   // {
+   //     for (int j = 0; j < 20; j++)
+   //     {
+
+   //         //int index = i * 20 + j;
+   //         //ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixRotateY(timer.currentTimeInSeconds), sphereTraceMatrixTranslation(ST_VECTOR3(i, 0, j)));
+   //         //ST_Matrix4 view = scene.camera.viewMatrix;
+   //         //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+   //         //m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+   //         //m_commandList->SetPipelineState(mPipeline.pPipelineState);
+   //         //m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+   //         //texture.bind(m_commandList.Get(), 1);
+   //         //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
+   //         //cbaStack.updateAndBindtCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+   //         //mSphereVB.draw(m_commandList.Get());
 
 
-			m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-			m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-			cbaStack.bindCurrentAccessor(0, m_commandList.Get(), 0);
-			mCubeWireFrameVB.draw(m_commandList.Get());
-			cbaStack.incrementStackIndex(0);
-        }
-    }
+			//m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			//m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+			//m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+			//cbaStack.bindCurrentAccessor(0, m_commandList.Get(), 0);
+			//mCubeWireFrameVB.draw(m_commandList.Get());
+			//cbaStack.incrementStackIndex(0);
+   //     }
+   // }
     //mConstantBufferAccessors[400].bind(m_commandList.Get());
     //mPlaneVB.draw(m_commandList.Get());
     // Indicate that the back buffer will now be used to present.
@@ -539,4 +517,76 @@ void Renderer::MoveToNextFrame()
 
     // Set the fence value for the next frame.
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+}
+
+void Renderer::drawSphere(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale)
+{
+
+    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position), 
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->SetPipelineState(mPipeline.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+    texture.bind(m_commandList.Get(), 1);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    mSphereVB.draw(m_commandList.Get());
+}
+
+void Renderer::drawBoxFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color)
+{
+    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    m_constantBufferData.color = color;
+    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+	mCubeWireFrameVB.draw(m_commandList.Get());
+}
+
+
+void Scene::updateCamera(float dt)
+{
+    if (Input::keys[KEY_W])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_A])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_S])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * dt), camera.cameraLerp);
+    }
+    if (Input::keys[KEY_D])
+    {
+        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * dt), camera.cameraLerp);
+    }
+
+    if (Input::mouse[MOUSE_RIGHT])
+    {
+        camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * dt;
+        camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * dt;
+    }
+    camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, dt * camera.lerpSpeed);
+    camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, dt * camera.lerpSpeed);
+    camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, dt * camera.lerpSpeed);
+    camera.cameraSetViewMatrix();
+    camera.cameraSetRightAndFwdVectors();
+}
+
+void Scene::draw()
+{
+    for (int i = 0; i < 40; i++)
+    {
+        for (int j = 0; j < 40; j++)
+        {
+            pRenderer->drawSphere(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One);
+            pRenderer->drawBoxFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen);
+        }
+    }
+    
 }

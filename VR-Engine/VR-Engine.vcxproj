@@ -180,6 +180,7 @@
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceTag.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="Time.h" />
     <ClInclude Include="VertexBuffer.h" />
   </ItemGroup>
