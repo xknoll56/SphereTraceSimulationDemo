@@ -29,11 +29,7 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float4 color : COLOR;
-    float2 uv : TEXCOORD;
 };
-
-Texture2D g_texture : register(t0);
-SamplerState g_sampler : register(s0);
 
 float3x3 extractRot(float4x4 model)
 {
@@ -63,7 +59,6 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
 
     result.position = mul(float4(position, 1.0f), mvp[instanceID]);
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
-    result.uv = uv;
     result.color = colors[instanceID];
     return result;
 }

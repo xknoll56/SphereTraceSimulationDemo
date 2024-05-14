@@ -57,6 +57,8 @@ public:
     {
         ST_Matrix4 mvp;
         ST_Matrix4 model;
+        ST_Vector4 color;
+        float colorMix;
     };
 
     struct alignas(256) VertexShaderInstancedConstantBuffer
@@ -66,20 +68,22 @@ public:
         ST_Vector4 colors[400];
     };
 
-    struct PixelShaderConstantBuffer
+    struct alignas(256) PixelShaderConstantBuffer
     {
         ST_Vector4 cameraPos;
         ST_Vector4 lightDir;
         ST_Vector4 lightColor;
-        ST_Vector4 color;
-        float colorMix;
     };
 
     VertexShaderConstantBuffer m_constantBufferData;
-    VertexShaderInstancedConstantBuffer instancedBufferData;
-    UINT numInstances = 0;
     PixelShaderConstantBuffer pixelShaderConstantBuffer;
+    ConstantBufferAccessor pixelShaderConstantBufferAccessor;
+
     ST_Matrix4 projection;
+
+    VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
+    UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
+    ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
 
 
 private:
@@ -91,7 +95,7 @@ private:
     // available.
     // It should be noted that excessive buffering of frames dependent on user input
     // may result in noticeable latency in your app.
-    static const UINT FrameCount = 3;
+    static const UINT FrameCount = 10;
     static const UINT TextureWidth = 256;
     static const UINT TextureHeight = 256;
     static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
@@ -112,6 +116,7 @@ private:
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     RootSigniture mRootSigniture;
     Pipeline mPipeline;
+    RootSigniture mRootSignitureInstanced;
     Pipeline mPipelineInstanced;
     RootSigniture mRootSignitureWireFrame;
     Pipeline mPipelineWireFrame;
@@ -131,8 +136,6 @@ private:
 
     //ConstantBufferAccessor mConstantBufferAccessors[500];
     ConstantBufferAccessorStack cbaStack;
-    ConstantBufferAccessor vertexShaderInstancedConstantBufferAccessor;
-    ConstantBufferAccessor pixelShaderInstancedConstantBufferAccessor;
     
 
     // Synchronization objects.
@@ -158,7 +161,8 @@ public:
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type);
-    void drawPrimitiveInstanced(UINT numInstances, ST_Matrix4* models, ST_Matrix4* mvps,  ST_Vector4* colors, Texture& texture, float colorMix, PrimitiveType type);
+    void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
+    void drawAddedPrimitiveInstance();
     void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };

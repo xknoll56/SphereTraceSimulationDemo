@@ -229,6 +229,24 @@ void Renderer::LoadAssets()
         mPipeline.init(m_device.Get(), mRootSigniture, L"DefaultShaders.hlsl", L"DefaultShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     }
 
+    // Create the root signiture for the wire frame pipeline
+    {
+
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+        rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // Allow input layout and deny uneccessary access to certain pipeline stages.
+        D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+        mRootSignitureInstanced.init(m_device.Get(), rootParameters, 2, rootSignatureFlags);
+    }
+
     // Create the pipeline state, which includes compiling and loading shaders.
     {
         // Define the vertex input layout.
@@ -240,7 +258,7 @@ void Renderer::LoadAssets()
         };
 
 
-        mPipelineInstanced.init(m_device.Get(), mRootSigniture, L"DefaultInstancedShaders.hlsl", L"DefaultInstancedShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+        mPipelineInstanced.init(m_device.Get(), mRootSignitureInstanced, L"DefaultInstancedShaders.hlsl", L"DefaultInstancedShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     }
 
     // Create the root signiture for the wire frame pipeline
@@ -294,7 +312,9 @@ void Renderer::LoadAssets()
     //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
     //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
     cbaStack = ConstantBufferAccessorStack(3);
-    vertexShaderInstancedConstantBufferAccessor.init(m_device.Get(), dhp, &instancedBufferData, sizeof(instancedBufferData));
+    pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer));
+    for (int i = 0; i < 4; i++)
+        perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
     UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 4000);
     UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 4000);
 
@@ -458,7 +478,10 @@ void Renderer::PopulateCommandList()
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-    //Draw everything in the scene
+    //Set the pixel shader vertex buffer data and bind it to Register 1
+    Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.camera.cameraPos, 1.0f);
+
+    //draw scene
     scene.draw();
 
     // Indicate that the back buffer will now be used to present.
@@ -515,9 +538,10 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
     texture.bind(m_commandList.Get(), 2);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.colorMix = 0.0f;
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBuffer.colorMix = 0.0f;
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&pixelShaderConstantBuffer, m_commandList.Get(), 1);
+    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -544,10 +568,11 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->SetPipelineState(mPipeline.pPipelineState);
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.color = color;
+    m_constantBufferData.colorMix = 1.0f;
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBuffer.color = color;
-    pixelShaderConstantBuffer.colorMix = 1.0f;
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, &pixelShaderConstantBuffer, m_commandList.Get(), 1);
+    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -573,10 +598,11 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
     texture.bind(m_commandList.Get(), 2);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.colorMix = colorMix;
+    m_constantBufferData.color = color;
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBuffer.colorMix = colorMix;
-    pixelShaderConstantBuffer.color = color;
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&pixelShaderConstantBuffer, m_commandList.Get(), 1);
+    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -593,35 +619,6 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     }
 }
 
-void Renderer::drawPrimitiveInstanced(UINT numInstances, ST_Matrix4* models, ST_Matrix4* mvps, ST_Vector4* colors, Texture& texture, float colorMix, PrimitiveType type)
-{
-    memcpy(&instancedBufferData.model, models, sizeof(ST_Matrix4) * numInstances);
-    memcpy(&instancedBufferData.mvp, mvps, sizeof(ST_Matrix4) * numInstances);
-    memcpy(&instancedBufferData.colors, colors, sizeof(ST_Vector4) * numInstances);
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
-    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    texture.bind(m_commandList.Get(), 2);
-    vertexShaderInstancedConstantBufferAccessor.updateConstantBufferData(&instancedBufferData);
-    vertexShaderInstancedConstantBufferAccessor.bind(m_commandList.Get(), 0);
-    pixelShaderConstantBuffer.colorMix = colorMix;
-    //pixelShaderConstantBuffer.color = color;
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&pixelShaderConstantBuffer, m_commandList.Get(), 1);
-    switch (type)
-    {
-    case PRIMITIVE_PLANE:
-        mPlaneVB.drawInstanced(m_commandList.Get(), numInstances);
-        break;
-    case PRIMITIVE_BOX:
-        mCubeVB.drawInstanced(m_commandList.Get(), numInstances);
-        break;
-    case PRIMITIVE_SPHERE:
-        mSphereVB.drawInstanced(m_commandList.Get(), numInstances);
-        break;
-    case PRIMITIVE_CYLINDER:
-        mCylinderVB.drawInstanced(m_commandList.Get(), numInstances);
-    }
-}
 
 
 void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
@@ -633,7 +630,6 @@ void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
     m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&color, m_commandList.Get(), 1);
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -683,6 +679,49 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
     mLineVB.draw(m_commandList.Get());
 }
 
+
+void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
+{
+    perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(Renderer::instance.projection, sphereTraceMatrixMult(scene.camera.viewMatrix, 
+        perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
+    perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
+
+    perPrimitiveInstanceBufferCounts[type]++;
+}
+
+void Renderer::drawAddedPrimitiveInstance()
+{
+    for (int i = 0; i < 4; i++)
+    {
+        PrimitiveType type = (PrimitiveType)i;
+        if (perPrimitiveInstanceBufferCounts[type] == 0)
+            continue;
+        m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureInstanced.pRootSigniture);
+        perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perPrimitiveInstanceBuffer[type]);
+        perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        switch (type)
+        {
+        case PRIMITIVE_PLANE:
+            mPlaneVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+            break;
+        case PRIMITIVE_BOX:
+            mCubeVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+            break;
+        case PRIMITIVE_SPHERE:
+            mSphereVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+            break;
+        case PRIMITIVE_CYLINDER:
+            mCylinderVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+        }
+        perPrimitiveInstanceBufferCounts[type] = 0;
+    }
+}
 
 
 

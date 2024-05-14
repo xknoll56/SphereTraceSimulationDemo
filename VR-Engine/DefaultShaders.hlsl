@@ -13,6 +13,8 @@ cbuffer VertexShaderConstantBuffer : register(b0)
 {
     float4x4 mvp;
     float4x4 model;
+    float4 color;
+    float colorMix;
 };
 
 cbuffer PixelShaderConstants : register(b1)
@@ -20,8 +22,7 @@ cbuffer PixelShaderConstants : register(b1)
     float4 cameraPos;
     float4 lightDir;
     float4 lightColor; 
-    float4 color;
-    float colorMix;
+
 }
 
 struct PSInput
@@ -29,6 +30,8 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float2 uv : TEXCOORD;
+    float4 color : COLOR;
+    float colorMix : TEXCOORD1;
 };
 
 Texture2D g_texture : register(t0);
@@ -63,6 +66,8 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.position = mul(float4(position, 1.0f), mvp);
     result.normal = normalize(mul(normal, extractRot(model)));
     result.uv = uv;
+    result.color = color;
+    result.colorMix = colorMix;
 
     return result;
 }
@@ -74,7 +79,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3 halfVec = normalize(normalizedLightDir + viewDir);
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
-    float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), color, colorMix);
+    float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
     float ambient = 0.3f;
     return baseColor * (diffuse + ambient + specular);
 
