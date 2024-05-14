@@ -73,7 +73,12 @@ private:
     struct alignas(256) SceneConstantBuffer
     {
         ST_Matrix4 mvp;
+    };
+
+    struct PixelShaderConstantBuffer
+    {
         ST_Vector4 color;
+        float colorMix;
     };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
@@ -100,6 +105,7 @@ private:
     //ComPtr<ID3D12Resource> m_constantBuffer;
     //UINT8* m_pCbvDataBegin;
     SceneConstantBuffer m_constantBufferData;
+    PixelShaderConstantBuffer pixelShaderConstantBuffer;
     
     ComPtr<ID3D12Resource> m_depthStencil;
 
@@ -129,6 +135,7 @@ public:
     // Draw methods
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
+    void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type);
     void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };

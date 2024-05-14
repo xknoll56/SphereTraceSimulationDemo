@@ -17,6 +17,7 @@ cbuffer SceneConstantBuffer : register(b0)
 cbuffer PixelShaderConstants : register(b1)
 {
     float4 color;
+    float colorMix;
 }
 
 struct PSInput
@@ -53,8 +54,5 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    //return float4(1, 1, 1, 1);
-    //return float4(input.uv.x, input.uv.y, 0, 1);
-    return g_texture.Sample(g_sampler, input.uv);
-    //return color;
+    return lerp(g_texture.Sample(g_sampler, input.uv), color, colorMix);
 }

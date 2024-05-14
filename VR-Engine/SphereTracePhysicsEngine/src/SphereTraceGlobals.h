@@ -53,7 +53,7 @@ const ST_BoxEdgeConnection gEdgeConnections[8];
 
 #define ST_VECTOR3(x, y, z) sphereTraceVector3Construct(x,y,z)
 //#define ST_VECTOR3() gVector3Zero
-#define ST_VECTOR4(x, y, z, w) sphereTraceVector4Construct(x, y, z, w);
+#define ST_VECTOR4(x, y, z, w) sphereTraceVector4Construct(x, y, z, w)
 
 #define ST_QUATERNION(v, alpha) sphereTraceQuaternionFromAngleAxis(v, alpha);
 

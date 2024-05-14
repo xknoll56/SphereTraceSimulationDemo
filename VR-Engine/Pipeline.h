@@ -40,7 +40,7 @@ struct RootSigniture
     {
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(1, rootParameters, 0, nullptr, flags);
+        rootSignatureDesc.Init_1_1(numRootParameters, rootParameters, 0, nullptr, flags);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
@@ -75,8 +75,18 @@ struct Pipeline
         psoDesc.pRootSignature = rootSigniture.pRootSigniture;
         psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
         psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get());
-        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-        psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
+
+        if (topologyType == D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE)
+        {
+            psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME; // Draw lines as wireframe
+            psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE; // Disable back-face culling
+        }
+        else
+        {
+            psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+            psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
+        }
+
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         CD3DX12_DEPTH_STENCIL_DESC1 depthDesc(D3D12_DEFAULT);
         psoDesc.DepthStencilState = depthDesc;
