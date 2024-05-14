@@ -30,9 +30,6 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Win32Application.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceTag.c">
       <Filter>SphereTrace</Filter>
     </ClCompile>
@@ -84,6 +81,9 @@
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.c">
       <Filter>SphereTrace</Filter>
     </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Renderer.h">
@@ -96,9 +96,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Win32Application.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="d3dx12.h">
@@ -179,12 +176,21 @@
     <ClInclude Include="Input.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DefaultShaders.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
     <FxCompile Include="WireFrameShaders.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
+    <FxCompile Include="DefaultInstancedShaders.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
   </ItemGroup>

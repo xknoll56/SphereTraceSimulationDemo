@@ -54,6 +54,12 @@ struct VertexBuffer
         pCommandList->DrawInstanced(numVerts, 1, 0, 0);
     }
 
+    void drawInstanced(ID3D12GraphicsCommandList* pCommandList, UINT numInstances)
+    {
+        pCommandList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+        pCommandList->DrawInstanced(numVerts, numInstances, 0, 0);
+    }
+
     static VertexBuffer createPlane(ID3D12Device* pDevice)
     {
         float planeVertexData[] = {

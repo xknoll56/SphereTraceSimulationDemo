@@ -229,6 +229,20 @@ void Renderer::LoadAssets()
         mPipeline.init(m_device.Get(), mRootSigniture, L"DefaultShaders.hlsl", L"DefaultShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
     }
 
+    // Create the pipeline state, which includes compiling and loading shaders.
+    {
+        // Define the vertex input layout.
+        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+
+        mPipelineInstanced.init(m_device.Get(), mRootSigniture, L"DefaultInstancedShaders.hlsl", L"DefaultInstancedShaders.hlsl", inputElementDescs, _countof(inputElementDescs), D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    }
+
     // Create the root signiture for the wire frame pipeline
     {
 
@@ -277,10 +291,11 @@ void Renderer::LoadAssets()
 
     //create constant buffer
     //for(int i = 0; i<400; i++)
-    //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
-    //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(SceneConstantBuffer));
+    //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
+    //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
     cbaStack = ConstantBufferAccessorStack(3);
-    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(SceneConstantBuffer), 4000);
+    vertexShaderInstancedConstantBufferAccessor.init(m_device.Get(), dhp, &instancedBufferData, sizeof(instancedBufferData));
+    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 4000);
     UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 4000);
 
 
@@ -575,6 +590,36 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         break;
     case PRIMITIVE_CYLINDER:
         mCylinderVB.draw(m_commandList.Get());
+    }
+}
+
+void Renderer::drawPrimitiveInstanced(UINT numInstances, ST_Matrix4* models, ST_Matrix4* mvps, ST_Vector4* colors, Texture& texture, float colorMix, PrimitiveType type)
+{
+    memcpy(&instancedBufferData.model, models, sizeof(ST_Matrix4) * numInstances);
+    memcpy(&instancedBufferData.mvp, mvps, sizeof(ST_Matrix4) * numInstances);
+    memcpy(&instancedBufferData.colors, colors, sizeof(ST_Vector4) * numInstances);
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+    texture.bind(m_commandList.Get(), 2);
+    vertexShaderInstancedConstantBufferAccessor.updateConstantBufferData(&instancedBufferData);
+    vertexShaderInstancedConstantBufferAccessor.bind(m_commandList.Get(), 0);
+    pixelShaderConstantBuffer.colorMix = colorMix;
+    //pixelShaderConstantBuffer.color = color;
+    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&pixelShaderConstantBuffer, m_commandList.Get(), 1);
+    switch (type)
+    {
+    case PRIMITIVE_PLANE:
+        mPlaneVB.drawInstanced(m_commandList.Get(), numInstances);
+        break;
+    case PRIMITIVE_BOX:
+        mCubeVB.drawInstanced(m_commandList.Get(), numInstances);
+        break;
+    case PRIMITIVE_SPHERE:
+        mSphereVB.drawInstanced(m_commandList.Get(), numInstances);
+        break;
+    case PRIMITIVE_CYLINDER:
+        mCylinderVB.drawInstanced(m_commandList.Get(), numInstances);
     }
 }
 

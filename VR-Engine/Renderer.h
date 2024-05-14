@@ -53,10 +53,17 @@ public:
     VertexBuffer mLineVB;
     VertexBuffer mCylinderVB;
 
-    struct alignas(256) SceneConstantBuffer
+    struct alignas(256) VertexShaderConstantBuffer
     {
         ST_Matrix4 mvp;
         ST_Matrix4 model;
+    };
+
+    struct alignas(256) VertexShaderInstancedConstantBuffer
+    {
+        ST_Matrix4 mvp[400];
+        ST_Matrix4 model[400];
+        ST_Vector4 colors[400];
     };
 
     struct PixelShaderConstantBuffer
@@ -68,8 +75,12 @@ public:
         float colorMix;
     };
 
-    SceneConstantBuffer m_constantBufferData;
+    VertexShaderConstantBuffer m_constantBufferData;
+    VertexShaderInstancedConstantBuffer instancedBufferData;
+    UINT numInstances = 0;
     PixelShaderConstantBuffer pixelShaderConstantBuffer;
+    ST_Matrix4 projection;
+
 
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
@@ -89,7 +100,7 @@ private:
     //ST_Matrix4 mvp;
 
 
-   // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
+   // static_assert((sizeof(VertexShaderConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
@@ -100,12 +111,13 @@ private:
     ComPtr<ID3D12CommandAllocator> m_commandAllocators[FrameCount];
     ComPtr<ID3D12CommandQueue> m_commandQueue;
     RootSigniture mRootSigniture;
+    Pipeline mPipeline;
+    Pipeline mPipelineInstanced;
     RootSigniture mRootSignitureWireFrame;
+    Pipeline mPipelineWireFrame;
     ComPtr<ID3D12DescriptorHeap> m_rtvHeap;
     DescriptorHandleProvider dhp;
     ComPtr<ID3D12DescriptorHeap> m_dsvHeap;
-    Pipeline mPipeline;
-    Pipeline mPipelineWireFrame;
     ComPtr<ID3D12GraphicsCommandList> m_commandList;
     UINT m_rtvDescriptorSize;
 
@@ -119,7 +131,9 @@ private:
 
     //ConstantBufferAccessor mConstantBufferAccessors[500];
     ConstantBufferAccessorStack cbaStack;
-    ST_Matrix4 projection;
+    ConstantBufferAccessor vertexShaderInstancedConstantBufferAccessor;
+    ConstantBufferAccessor pixelShaderInstancedConstantBufferAccessor;
+    
 
     // Synchronization objects.
     UINT m_frameIndex;
@@ -144,6 +158,7 @@ public:
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type);
+    void drawPrimitiveInstanced(UINT numInstances, ST_Matrix4* models, ST_Matrix4* mvps,  ST_Vector4* colors, Texture& texture, float colorMix, PrimitiveType type);
     void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };
