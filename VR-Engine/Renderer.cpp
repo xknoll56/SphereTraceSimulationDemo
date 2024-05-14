@@ -365,6 +365,8 @@ void Renderer::LoadAssets()
     scene.camera = Camera::cameraConstructDefault();
     scene.camera.cameraSetViewMatrix();
     projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
+    pixelShaderConstantBuffer.lightDir = ST_VECTOR4(0.5, 1, 0.5, 1);
 }
 
 
@@ -491,13 +493,13 @@ void Renderer::MoveToNextFrame()
 void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type)
 {
 
-    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position), 
+    m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetPipelineState(mPipeline.pPipelineState);
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
     texture.bind(m_commandList.Get(), 2);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
     pixelShaderConstantBuffer.colorMix = 0.0f;
     cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&pixelShaderConstantBuffer, m_commandList.Get(), 1);
@@ -521,12 +523,12 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
 {
 
-    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+    m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetPipelineState(mPipeline.pPipelineState);
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
     pixelShaderConstantBuffer.color = color;
     pixelShaderConstantBuffer.colorMix = 1.0f;
@@ -549,13 +551,13 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 
 void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type)
 {
-    ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+    m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->SetPipelineState(mPipeline.pPipelineState);
     m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
     texture.bind(m_commandList.Get(), 2);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
     cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
     pixelShaderConstantBuffer.colorMix = colorMix;
     pixelShaderConstantBuffer.color = color;

@@ -42,14 +42,12 @@ void Scene::updateCamera(float dt)
 
 void Scene::draw()
 {
+    Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(camera.cameraPos, 1.0f);
     for (int i = 0; i < 5; i++)
     {
         for (int j = 0; j < 5; j++)
         {
-            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_CYLINDER);
-           // Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, Renderer::instance.texture, PRIMITIVE_CYLINDER);
-            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorMagenta, Renderer::instance.texture, 0.5f, PRIMITIVE_BOX);
-            //Renderer::instance.drawWireFrame(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_SPHERE);
+            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorGold, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
         }
     }
     Renderer::instance.drawLine(gVector3Zero, ST_VECTOR3(10, 10, 10), gVector4ColorBlue);

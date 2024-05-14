@@ -12,10 +12,14 @@
 cbuffer SceneConstantBuffer : register(b0)
 {
     float4x4 mvp;
+    float4x4 model;
 };
 
 cbuffer PixelShaderConstants : register(b1)
 {
+    float4 cameraPos;
+    float4 lightDir;
+    float4 lightColor; 
     float4 color;
     float colorMix;
 }
@@ -23,6 +27,7 @@ cbuffer PixelShaderConstants : register(b1)
 struct PSInput
 {
     float4 position : SV_POSITION;
+    float3 normal : NORMAL; // Surface normal
     float2 uv : TEXCOORD;
 };
 
@@ -42,11 +47,21 @@ float3x3 extractRot(float4x4 model)
     return ret;
 }
 
+float4 CalculateLighting(float3 viewDir, float3 normal, float3 lightDir, float3 lightColor)
+{
+    float3 halfVec = normalize(lightDir + viewDir);
+    float diffuse = max(0.0f, dot(normal, lightDir));
+    float specular = pow(max(0.0f, dot(normal, halfVec)), 32); // Adjust the specular power as needed
+    float ambient = 0.5f;
+    return float4(1, 1, 1, 1);
+}
+
 PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD)
 {
     PSInput result;
 
     result.position = mul(float4(position, 1.0f), mvp);
+    result.normal = normalize(mul(normal, extractRot(model)));
     result.uv = uv;
 
     return result;
@@ -54,5 +69,13 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return lerp(g_texture.Sample(g_sampler, input.uv), color, colorMix);
+    float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
+    float3 normalizedLightDir = normalize(lightDir.xyz);
+    float3 halfVec = normalize(normalizedLightDir + viewDir);
+    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
+    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
+    float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), color, colorMix);
+    float ambient = 0.3f;
+    return baseColor * (diffuse + ambient + specular);
+
 }

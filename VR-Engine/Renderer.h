@@ -53,6 +53,24 @@ public:
     VertexBuffer mLineVB;
     VertexBuffer mCylinderVB;
 
+    struct alignas(256) SceneConstantBuffer
+    {
+        ST_Matrix4 mvp;
+        ST_Matrix4 model;
+    };
+
+    struct PixelShaderConstantBuffer
+    {
+        ST_Vector4 cameraPos;
+        ST_Vector4 lightDir;
+        ST_Vector4 lightColor;
+        ST_Vector4 color;
+        float colorMix;
+    };
+
+    SceneConstantBuffer m_constantBufferData;
+    PixelShaderConstantBuffer pixelShaderConstantBuffer;
+
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
     // number of frames that will be queued to the GPU at a time, as well as the number
@@ -70,16 +88,7 @@ private:
 
     //ST_Matrix4 mvp;
 
-    struct alignas(256) SceneConstantBuffer
-    {
-        ST_Matrix4 mvp;
-    };
 
-    struct PixelShaderConstantBuffer
-    {
-        ST_Vector4 color;
-        float colorMix;
-    };
    // static_assert((sizeof(SceneConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
@@ -104,8 +113,7 @@ private:
 
     //ComPtr<ID3D12Resource> m_constantBuffer;
     //UINT8* m_pCbvDataBegin;
-    SceneConstantBuffer m_constantBufferData;
-    PixelShaderConstantBuffer pixelShaderConstantBuffer;
+
     
     ComPtr<ID3D12Resource> m_depthStencil;
 
