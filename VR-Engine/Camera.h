@@ -16,7 +16,7 @@ typedef struct Camera
 	float cameraMovementSpeed;
 	float cameraTurningSpeed;
 	ST_Matrix4 viewMatrix;
-	ST_Matrix4 perspectiveMatrix;
+	ST_Matrix4 projectionMatrix;
 	float lerpSpeed;
 
 

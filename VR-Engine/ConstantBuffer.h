@@ -104,6 +104,7 @@ struct ConstantBufferAccessorStack
                 cbaStacks[stackIndex][i].init(pDevice, dhp, data, sizeofConstantBufferData);
             }
             numStacks++;
+            free(data);
             return stackIndex;
         }
         return -1;

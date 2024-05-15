@@ -17,4 +17,5 @@ struct Scene
     Camera camera;
     void updateCamera(float dt);
     void draw();
+    void init();
 };
