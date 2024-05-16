@@ -14,7 +14,7 @@ enum PrimitiveType
 
 struct Scene
 {
-    Camera camera;
+    Camera* pBoundCamera;
     void updateCamera(float dt);
     void draw();
     void init();

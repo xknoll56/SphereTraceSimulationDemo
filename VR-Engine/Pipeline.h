@@ -100,4 +100,41 @@ struct Pipeline
         ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pPipelineState)));
     }
 
+    void initShadows(ID3D12Device* pDevice, RootSigniture& rootSigniture, LPCWSTR vertexShaderPath, LPCWSTR pixelShaderPath,
+        D3D12_INPUT_ELEMENT_DESC* inputElementDescs, UINT inputElementSize, D3D12_PRIMITIVE_TOPOLOGY_TYPE topologyType)
+    {
+        ComPtr<ID3DBlob> vertexShader;
+        ComPtr<ID3DBlob> pixelShader;
+
+#if defined(_DEBUG)
+        // Enable better shader debugging with the graphics debugging tools.
+        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+        UINT compileFlags = 0;
+#endif
+
+        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)vertexShaderPath, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)pixelShaderPath, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+
+        // Describe and create the graphics pipeline state object (PSO)
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.InputLayout = { inputElementDescs, inputElementSize };
+        psoDesc.pRootSignature = rootSigniture.pRootSigniture;
+        psoDesc.VS = CD3DX12_SHADER_BYTECODE(vertexShader.Get());
+        psoDesc.PS = CD3DX12_SHADER_BYTECODE(pixelShader.Get()); // null shader
+        psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+        psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+        psoDesc.DepthStencilState.DepthEnable = TRUE;
+        psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        psoDesc.DepthStencilState.StencilEnable = FALSE;
+        psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+        psoDesc.NumRenderTargets = 0; // No render targets
+        psoDesc.SampleMask = UINT_MAX;
+        psoDesc.SampleDesc.Count = 1;
+
+        ThrowIfFailed(pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pPipelineState)));
+    }
+
 };

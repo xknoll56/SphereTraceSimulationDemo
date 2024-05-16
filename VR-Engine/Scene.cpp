@@ -13,31 +13,31 @@ void Scene::updateCamera(float dt)
         boost = 3.0f;
     if (Input::keys[KEY_W])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
+        pBoundCamera->cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(pBoundCamera->cameraFwd, pBoundCamera->cameraMovementSpeed * dt * boost), pBoundCamera->cameraLerp);
     }
     if (Input::keys[KEY_A])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
+        pBoundCamera->cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(pBoundCamera->cameraRight, -pBoundCamera->cameraMovementSpeed * dt * boost), pBoundCamera->cameraLerp);
     }
     if (Input::keys[KEY_S])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraFwd, -camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
+        pBoundCamera->cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(pBoundCamera->cameraFwd, -pBoundCamera->cameraMovementSpeed * dt * boost), pBoundCamera->cameraLerp);
     }
     if (Input::keys[KEY_D])
     {
-        camera.cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(camera.cameraRight, camera.cameraMovementSpeed * dt * boost), camera.cameraLerp);
+        pBoundCamera->cameraLerp = sphereTraceVector3Add(sphereTraceVector3Scale(pBoundCamera->cameraRight, pBoundCamera->cameraMovementSpeed * dt * boost), pBoundCamera->cameraLerp);
     }
 
     if (Input::mouse[MOUSE_RIGHT])
     {
-        camera.cameraLerpYaw += Input::gDeltaMousePosition.x * camera.cameraTurningSpeed * dt;
-        camera.cameraLerpPitch += Input::gDeltaMousePosition.y * camera.cameraTurningSpeed * dt;
+        pBoundCamera->cameraLerpYaw += Input::gDeltaMousePosition.x * pBoundCamera->cameraTurningSpeed * dt;
+        pBoundCamera->cameraLerpPitch += Input::gDeltaMousePosition.y * pBoundCamera->cameraTurningSpeed * dt;
     }
-    camera.cameraPos = sphereTraceVector3Lerp(camera.cameraPos, camera.cameraLerp, dt * camera.lerpSpeed);
-    camera.cameraYaw = sphereTraceLerp(camera.cameraYaw, camera.cameraLerpYaw, dt * camera.lerpSpeed);
-    camera.cameraPitch = sphereTraceLerp(camera.cameraPitch, camera.cameraLerpPitch, dt * camera.lerpSpeed);
-    camera.cameraSetViewMatrix();
-    camera.cameraSetRightAndFwdVectors();
+    pBoundCamera->cameraPos = sphereTraceVector3Lerp(pBoundCamera->cameraPos, pBoundCamera->cameraLerp, dt * pBoundCamera->lerpSpeed);
+    pBoundCamera->cameraYaw = sphereTraceLerp(pBoundCamera->cameraYaw, pBoundCamera->cameraLerpYaw, dt * pBoundCamera->lerpSpeed);
+    pBoundCamera->cameraPitch = sphereTraceLerp(pBoundCamera->cameraPitch, pBoundCamera->cameraLerpPitch, dt * pBoundCamera->lerpSpeed);
+    pBoundCamera->cameraSetViewMatrix();
+    pBoundCamera->cameraSetRightAndFwdVectors();
 }
 
 float timeGetRandomFloatBetween0And1()
@@ -52,12 +52,14 @@ void Scene::init()
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
-            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One,
+            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One,
                 sphereTraceVector4Construct(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f), PRIMITIVE_SPHERE);
         }
     }
 
     Renderer::instance.perPrimitiveInstanceBufferCounts[PRIMITIVE_SPHERE] = 0;
+    pBoundCamera->cameraMovementSpeed = 4.0f;
+    //pBoundCamera = &Renderer::instance.directionalLightCamera;
 }
 
 void Scene::draw()
@@ -67,12 +69,13 @@ void Scene::draw()
         for (int j = 0; j < 20; j++)
         {
             int index = i * 20 + j;
-            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
-            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+            Renderer::instance.drawPrimitive(ST_VECTOR3(i, 0, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
+            //Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
         }
     }
+    Renderer::instance.drawPrimitive(Renderer::instance.directionalLightCamera.cameraPos, gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
     Renderer::instance.drawAddedPrimitiveInstance();
-    Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, Renderer::instance.texture, 0.0f, PRIMITIVE_PLANE);
+    Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
     Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, ST_VECTOR4(0,1,1,1), PRIMITIVE_PLANE);
 
 }

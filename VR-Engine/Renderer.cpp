@@ -140,7 +140,7 @@ void Renderer::LoadPipeline()
         // Step 1: Define Descriptor Heap Parameters
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
         dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // Type of descriptors (Depth Stencil Views)
-        dsvHeapDesc.NumDescriptors = 1; // Number of descriptors (usually one for depth buffer)
+        dsvHeapDesc.NumDescriptors = 2; // Number of descriptors (usually one for depth buffer)
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // No special flags needed
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
@@ -291,6 +291,36 @@ void Renderer::LoadAssets()
             D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE);
     }
 
+    // Create the root signiture for the shadow pipeline
+    {
+
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+        // Allow input layout and deny uneccessary access to certain pipeline stages.
+        D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+        mRootSignitureShadow.init(m_device.Get(), rootParameters, 1, rootSignatureFlags);
+    }
+
+
+    // Create the pipeline for the shadow models
+    {
+        // Define the vertex input layout.
+        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+
+        mPipelineShadow.initShadows(m_device.Get(), mRootSignitureShadow, L"ShadowPass.hlsl", L"ShadowPass.hlsl", inputElementDescs, _countof(inputElementDescs),
+            D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
+    }
+
     // Create the command list.
     ThrowIfFailed(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_commandAllocators[m_frameIndex].Get(), mPipeline.pPipelineState, IID_PPV_ARGS(&m_commandList)));
 
@@ -313,8 +343,11 @@ void Renderer::LoadAssets()
     pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer));
     for (int i = 0; i < 4; i++)
         perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
-    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 4000);
-    UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 4000);
+    for (int i = 0; i < 4; i++)
+        perPrimitiveInstanceCBAAccessorsShadows[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBufferShadows[0], sizeof(VertexShaderInstancedConstantBufferShadows));
+    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 2000);
+    UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
+    cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
 
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -363,6 +396,41 @@ void Renderer::LoadAssets()
         NAME_D3D12_OBJECT(m_depthStencil);
 
         m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        // Define the depth buffer's properties
+        D3D12_RESOURCE_DESC depthBufferDesc = {};
+        depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        depthBufferDesc.Alignment = 0;
+        depthBufferDesc.Width = shadowMapWidth;
+        depthBufferDesc.Height = shadowMapHeight;
+        depthBufferDesc.DepthOrArraySize = 1;
+        depthBufferDesc.MipLevels = 1;
+        depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24-bit depth + 8-bit stencil
+        depthBufferDesc.SampleDesc.Count = 1;
+        depthBufferDesc.SampleDesc.Quality = 0;
+        depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+        // Specify clear value for the depth buffer
+        D3D12_CLEAR_VALUE clearValue = {};
+        clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        clearValue.DepthStencil.Depth = 1.0f;
+        clearValue.DepthStencil.Stencil = 0;
+
+        // Create the depth buffer resource
+        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        m_device->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &depthBufferDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            &clearValue,
+            IID_PPV_ARGS(&shadowDepthBuffer)
+        );
+
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        m_device->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, handle);
     }
 
     // Close the command list and execute it to begin the initial GPU setup.
@@ -395,16 +463,17 @@ void Renderer::LoadAssets()
     //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
     //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
-    directionalLightCamera = Camera::cameraConstructDefault();
-    directionalLightCamera.cameraPos = { 0, 50, 0 };
-    directionalLightCamera.cameraPitch = M_PI * 0.50f;
-    directionalLightCamera.cameraYaw = -M_PI * 0.5f;
-    scene.camera = Camera::cameraConstructDefault();
-    scene.camera.cameraSetViewMatrix();
-    scene.camera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    dirLightOffset = ST_VECTOR3(0, 25, 0);
+    directionalLightCamera = Camera::cameraConstruct(dirLightOffset, M_PI * 0.50f, -M_PI * 0.5f);
+    directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-15, 15, 15, -15, -40.0f, 40.0f, 1.0f);
+    mainCamera = Camera::cameraConstructDefault();
+    mainCamera.cameraSetViewMatrix();
+    mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
     pixelShaderConstantBuffer.lightDir = ST_VECTOR4(0.5, 1, 0.5, 1);
+    scene.pBoundCamera = &mainCamera;
     scene.init();
+
 }
 
 
@@ -459,40 +528,93 @@ void Renderer::PopulateCommandList()
     dhp.bindDescriptorHeap(m_commandList.Get());
     cbaStack.resetAllStackIndices();
 
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    {
+        // 1. Transition the depth buffer to the depth write state
+        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            shadowDepthBuffer.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
+            D3D12_RESOURCE_STATE_DEPTH_WRITE
+        );
 
+        m_commandList->ResourceBarrier(1, &transition);
 
+        // 2. Set the pipeline state and root signature
+        m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
 
+        // 3. Set the viewport and scissor rect
+        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMapWidth), static_cast<float>(shadowMapHeight), 0.0f, 1.0f };
+        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMapWidth), static_cast<LONG>(shadowMapHeight) };
+        m_commandList->RSSetViewports(1, &viewport);
+        m_commandList->RSSetScissorRects(1, &scissorRect);
+
+        // 4. Set the depth stencil view
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
+
+        // 5. Clear the depth buffer
+        m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+        // 6. Draw the scene (bind vertex/index buffers, set the root parameters, and issue draw calls)
+        isShadowPass = true;
+        scene.pBoundCamera = &directionalLightCamera;
+        scene.draw();
+
+        // 7. Transition the depth buffer to a readable state (optional)
+        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            shadowDepthBuffer.Get(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+        m_commandList->ResourceBarrier(1, &transition);
+
+    }
+    //********************************************************RENDER PASS************************************************************************************************
+    //********************************************************RENDER PASS************************************************************************************************
+    //********************************************************RENDER PASS************************************************************************************************
+    //********************************************************RENDER PASS************************************************************************************************
+    //********************************************************RENDER PASS************************************************************************************************
     // Indicate that the back buffer will be used as a render target.
-    CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_commandList->ResourceBarrier(1, &resourceBarrier);
-    resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    m_commandList->ResourceBarrier(1, &resourceBarrier);
+    {
+        CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        m_commandList->ResourceBarrier(1, &resourceBarrier);
+        resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        m_commandList->ResourceBarrier(1, &resourceBarrier);
 
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+        m_commandList->RSSetViewports(1, &m_viewport);
+        m_commandList->RSSetScissorRects(1, &m_scissorRect);
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(m_rtvHeap->GetCPUDescriptorHandleForHeapStart(), m_frameIndex, m_rtvDescriptorSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-    m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+        m_commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
-    // Record commands.
-    const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        // Record commands.
+        const float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+        m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-    //Set the pixel shader vertex buffer data and bind it to Register 1
-    Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.camera.cameraPos, 1.0f);
+        //Set the pixel shader vertex buffer data and bind it to Register 1
+        directionalLightCamera.cameraPos = sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset);
+        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
 
-    //draw scene
-    scene.draw();
+        //draw scene
+        isShadowPass = false;
+        scene.pBoundCamera = &mainCamera;
+        scene.draw();
 
-    // Indicate that the back buffer will now be used to present.
-    resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_commandList->ResourceBarrier(1, &resourceBarrier);
-    resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_DEPTH_READ);
-    m_commandList->ResourceBarrier(1, &resourceBarrier);
-
+        // Indicate that the back buffer will now be used to present.
+        resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        m_commandList->ResourceBarrier(1, &resourceBarrier);
+        resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_DEPTH_READ);
+        m_commandList->ResourceBarrier(1, &resourceBarrier);
+    }
     ThrowIfFailed(m_commandList->Close());
 }
 
@@ -537,14 +659,21 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->SetPipelineState(mPipeline.pPipelineState);
-    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    texture.bind(m_commandList.Get(), 2);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = 0.0f;
-    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipeline.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        texture.bind(m_commandList.Get(), 2);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    }
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -567,15 +696,22 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->SetPipelineState(mPipeline.pPipelineState);
-    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.color = color;
     m_constantBufferData.colorMix = 1.0f;
-    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipeline.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    }
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -597,15 +733,22 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->SetPipelineState(mPipeline.pPipelineState);
-    m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-    texture.bind(m_commandList.Get(), 2);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
-    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-    pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipeline.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        texture.bind(m_commandList.Get(), 2);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    }
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -629,11 +772,19 @@ void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix, model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
     m_constantBufferData.color = color;
-    cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -671,38 +822,68 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateY(theta));
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateZ(psi));
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixScale({ dist, 1, 1 }));
-    ST_Matrix4 modelView = sphereTraceMatrixMult(scene.camera.viewMatrix, modelMatrix);
-    ST_Matrix4 modelViewProjection = sphereTraceMatrixMult(scene.camera.projectionMatrix, modelView);
+    ST_Matrix4 modelView = sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, modelMatrix);
+    ST_Matrix4 modelViewProjection = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, modelView);
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-    m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-    m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
     m_constantBufferData.mvp = modelViewProjection;
-    cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-    cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*) & color, m_commandList.Get(), 1);
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&color, m_commandList.Get(), 1);
+    }
     mLineVB.draw(m_commandList.Get());
 }
 
 
 void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
 {
-    perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
-        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix,
-        perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
-    perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
 
-    perPrimitiveInstanceBufferCounts[type]++;
+    if (isShadowPass)
+    {
+        ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+            sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+            model));
+        perPrimitiveInstanceBufferCountsShadows[type]++;
+    }
+    else
+    {
+        perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+            sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+            perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
+        perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
+
+        perPrimitiveInstanceBufferCounts[type]++;
+    }
 }
 
 
 void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type)
 {
-    perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
-        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.camera.projectionMatrix, sphereTraceMatrixMult(scene.camera.viewMatrix,
-        perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
-    perPrimitiveInstanceBufferCounts[type]++;
+    if (isShadowPass)
+    {
+        ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+            sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+            model));
+        perPrimitiveInstanceBufferCountsShadows[type]++;
+    }
+    else
+    {
+        perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+            sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+            perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
+        perPrimitiveInstanceBufferCounts[type]++;
+    }
 }
 
 void Renderer::drawAddedPrimitiveInstance()
@@ -710,30 +891,59 @@ void Renderer::drawAddedPrimitiveInstance()
     for (int i = 0; i < 4; i++)
     {
         PrimitiveType type = (PrimitiveType)i;
-        if (perPrimitiveInstanceBufferCounts[type] == 0)
-            continue;
-        m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
-        m_commandList->SetGraphicsRootSignature(mRootSignitureInstanced.pRootSigniture);
-        perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perPrimitiveInstanceBuffer[type]);
-        perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
-        switch (type)
+
+        if (isShadowPass)
         {
-        case PRIMITIVE_PLANE:
-            mPlaneVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
-            break;
-        case PRIMITIVE_BOX:
-            mCubeVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
-            break;
-        case PRIMITIVE_SPHERE:
-            mSphereVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
-            break;
-        case PRIMITIVE_CYLINDER:
-            mCylinderVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+            if (perPrimitiveInstanceBufferCountsShadows[type] == 0)
+                continue;
+            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            perPrimitiveInstanceCBAAccessorsShadows[type].updateConstantBufferData(&perPrimitiveInstanceBufferShadows[type]);
+            perPrimitiveInstanceCBAAccessorsShadows[type].bind(m_commandList.Get(), 0);
+
+            switch (type)
+            {
+            case PRIMITIVE_PLANE:
+                mPlaneVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCountsShadows[type]);
+                break;
+            case PRIMITIVE_BOX:
+                mCubeVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCountsShadows[type]);
+                break;
+            case PRIMITIVE_SPHERE:
+                mSphereVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCountsShadows[type]);
+                break;
+            case PRIMITIVE_CYLINDER:
+                mCylinderVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCountsShadows[type]);
+            }
+            perPrimitiveInstanceBufferCountsShadows[type] = 0;
         }
-        perPrimitiveInstanceBufferCounts[type] = 0;
+        else
+        {
+            if (perPrimitiveInstanceBufferCounts[type] == 0)
+                continue;
+            m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
+            m_commandList->SetGraphicsRootSignature(mRootSignitureInstanced.pRootSigniture);
+            perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perPrimitiveInstanceBuffer[type]);
+            perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
+            pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+            pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+
+            switch (type)
+            {
+            case PRIMITIVE_PLANE:
+                mPlaneVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+                break;
+            case PRIMITIVE_BOX:
+                mCubeVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+                break;
+            case PRIMITIVE_SPHERE:
+                mSphereVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+                break;
+            case PRIMITIVE_CYLINDER:
+                mCylinderVB.drawInstanced(m_commandList.Get(), perPrimitiveInstanceBufferCounts[type]);
+            }
+            perPrimitiveInstanceBufferCounts[type] = 0;
+        }
     }
 }
 

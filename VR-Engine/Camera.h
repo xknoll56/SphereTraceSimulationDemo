@@ -57,6 +57,23 @@ typedef struct Camera
 		return camera;
 	}
 
+	static Camera cameraConstruct(ST_Vector3 cameraPos, float cameraPitch, float cameraYaw)
+	{
+		Camera camera;
+		camera.cameraPos = cameraPos;
+		camera.cameraPitch = cameraPitch;
+		camera.cameraYaw = cameraYaw;
+		camera.cameraLerp = cameraPos;
+		camera.cameraLerpPitch = cameraPitch;
+		camera.cameraLerpYaw = cameraYaw;
+		camera.cameraMovementSpeed = 5.0f;
+		camera.lerpSpeed = 3.0f;
+		camera.cameraTurningSpeed = 1.0f;
+		camera.cameraSetViewMatrix();
+		camera.cameraSetRightAndFwdVectors();
+		return camera;
+	}
+
 	void cameraSetViewMatrix()
 	{
 		viewMatrix = sphereTraceMatrixMult(sphereTraceMatrixMult(sphereTraceMatrixRotateX(cameraPitch), sphereTraceMatrixRotateY(cameraYaw)), sphereTraceMatrixTranslation(sphereTraceVector3Negative(cameraPos)));
