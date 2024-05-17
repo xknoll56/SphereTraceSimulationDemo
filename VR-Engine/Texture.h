@@ -1,4 +1,7 @@
 #pragma once
+#include <fstream>
+
+
 struct Texture
 {
     ID3D12Resource* m_texture;
@@ -69,5 +72,65 @@ struct Texture
     void bind(ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
     {
         pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuDescriptorHandle);
+    }
+
+#pragma pack(push, 1)
+    struct BMPFileHeader {
+        uint16_t fileType{ 0x4D42 };       // File type always BM which is 0x4D42
+        uint32_t fileSize{ 0 };            // Size of the file (in bytes)
+        uint16_t reserved1{ 0 };           // Reserved, always 0
+        uint16_t reserved2{ 0 };           // Reserved, always 0
+        uint32_t offsetData{ 0 };          // Start position of pixel data (bytes from the beginning of the file)
+    };
+
+    struct BMPInfoHeader {
+        uint32_t size{ 0 };                // Size of this header (in bytes)
+        int32_t width{ 0 };                // width of bitmap in pixels
+        int32_t height{ 0 };               // width of bitmap in pixels
+        // (if positive, bottom-up, with origin in lower left corner)
+        // (if negative, top-down, with origin in upper left corner)
+        uint16_t planes{ 1 };              // No. of planes for the target device, this is always 1
+        uint16_t bitCount{ 0 };            // No. of bits per pixel
+        uint32_t compression{ 0 };         // 0 or 3 - uncompressed. This program only uses uncompressed BMPs
+        uint32_t sizeImage{ 0 };           // 0 - for uncompressed images
+        int32_t xPixelsPerMeter{ 0 };
+        int32_t yPixelsPerMeter{ 0 };
+        uint32_t colorsUsed{ 0 };          // No. color indexes in the color table. Use 0 for the max number of colors allowed by bit_count
+        uint32_t colorsImportant{ 0 };     // No. of colors used for displaying the bitmap. If 0 all colors are required
+    };
+#pragma pack(pop)
+
+    static void writeBMP(const char* filename, const unsigned char* data, int width, int height) {
+        // Create BMP file header
+        BMPFileHeader fileHeader;
+        BMPInfoHeader infoHeader;
+
+        int rowStride = width * 3;
+        int paddingSize = (4 - (rowStride) % 4) % 4;
+
+        fileHeader.fileSize = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + (rowStride + paddingSize) * height;
+        fileHeader.offsetData = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader);
+
+        infoHeader.size = sizeof(BMPInfoHeader);
+        infoHeader.width = width;
+        infoHeader.height = height;
+        infoHeader.bitCount = 24;
+        infoHeader.sizeImage = (rowStride + paddingSize) * height;
+
+        std::ofstream of{ filename, std::ios::binary };
+        if (!of) {
+            //std::cerr << "Could not open file for writing: " << filename << std::endl;
+            return;
+        }
+
+        // Write the file headers
+        of.write(reinterpret_cast<const char*>(&fileHeader), sizeof(fileHeader));
+        of.write(reinterpret_cast<const char*>(&infoHeader), sizeof(infoHeader));
+
+        // Write the pixel data
+        for (int y = 0; y < height; ++y) {
+            of.write(reinterpret_cast<const char*>(data + (width * 3 * y)), rowStride);
+            of.write("\0\0\0", paddingSize);  // padding
+        }
     }
 };

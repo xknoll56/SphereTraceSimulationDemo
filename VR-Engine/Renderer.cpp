@@ -397,41 +397,69 @@ void Renderer::LoadAssets()
 
         m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-        // Define the depth buffer's properties
-        D3D12_RESOURCE_DESC depthBufferDesc = {};
-        depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        depthBufferDesc.Alignment = 0;
-        depthBufferDesc.Width = shadowMapWidth;
-        depthBufferDesc.Height = shadowMapHeight;
-        depthBufferDesc.DepthOrArraySize = 1;
-        depthBufferDesc.MipLevels = 1;
-        depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24-bit depth + 8-bit stencil
-        depthBufferDesc.SampleDesc.Count = 1;
-        depthBufferDesc.SampleDesc.Quality = 0;
-        depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        //// Define the depth buffer's properties
+        //D3D12_RESOURCE_DESC depthBufferDesc = {};
+        //depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        //depthBufferDesc.Alignment = 0;
+        //depthBufferDesc.Width = shadowMapWidth;
+        //depthBufferDesc.Height = shadowMapHeight;
+        //depthBufferDesc.DepthOrArraySize = 1;
+        //depthBufferDesc.MipLevels = 1;
+        //depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24-bit depth + 8-bit stencil
+        //depthBufferDesc.SampleDesc.Count = 1;
+        //depthBufferDesc.SampleDesc.Quality = 0;
+        //depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        //depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 
-        // Specify clear value for the depth buffer
-        D3D12_CLEAR_VALUE clearValue = {};
-        clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        clearValue.DepthStencil.Depth = 1.0f;
-        clearValue.DepthStencil.Stencil = 0;
+        //// Specify clear value for the depth buffer
+        //D3D12_CLEAR_VALUE clearValue = {};
+        //clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        //clearValue.DepthStencil.Depth = 1.0f;
+        //clearValue.DepthStencil.Stencil = 0;
 
-        // Create the depth buffer resource
-        heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        m_device->CreateCommittedResource(
+        //// Create the depth buffer resource
+        //heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        //m_device->CreateCommittedResource(
+        //    &heapProps,
+        //    D3D12_HEAP_FLAG_NONE,
+        //    &depthBufferDesc,
+        //    D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        //    &clearValue,
+        //    IID_PPV_ARGS(&shadowDepthBuffer)
+        //);
+
+        resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, shadowMapWidth, shadowMapHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+        ThrowIfFailed(m_device->CreateCommittedResource(
             &heapProps,
             D3D12_HEAP_FLAG_NONE,
-            &depthBufferDesc,
+            &resourceDesc,
             D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &clearValue,
+            &depthOptimizedClearValue,
             IID_PPV_ARGS(&shadowDepthBuffer)
-        );
+        ));
 
         D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
         handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         m_device->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, handle);
     }
+
+    //{
+    //    int width = 100;  // example width
+    //    int height = 100; // example height
+
+    //    // Create an example image: a gradient from black to white
+    //    std::vector<unsigned char> image(width * height * 3);
+    //    for (int y = 0; y < height; ++y) {
+    //        for (int x = 0; x < width; ++x) {
+    //            int offset = (y * width + x) * 3;
+    //            image[offset] = static_cast<unsigned char>(x * 255 / width);  // R
+    //            image[offset + 1] = static_cast<unsigned char>(y * 255 / height);  // G
+    //            image[offset + 2] = 0;  // B
+    //        }
+    //    }
+
+    //    Texture::writeBMP("output.bmp", image.data(), width, height);
+    //}
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
