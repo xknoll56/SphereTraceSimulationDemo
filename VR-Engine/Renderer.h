@@ -128,6 +128,7 @@ private:
     Pipeline mPipeline;
     RootSigniture mRootSignitureShadow;
     Pipeline mPipelineShadow;
+    Pipeline mPipelineShadowInstanced;
     RootSigniture mRootSignitureInstanced;
     Pipeline mPipelineInstanced;
     RootSigniture mRootSignitureWireFrame;
