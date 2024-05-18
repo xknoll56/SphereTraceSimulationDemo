@@ -196,5 +196,8 @@
     <FxCompile Include="ShadowPass.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+    <FxCompile Include="ShadowPassInstanced.hlsl">
+      <Filter>Resource Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

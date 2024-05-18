@@ -12,9 +12,11 @@
 #define MAX_INSTANCES 400
 cbuffer VertexShaderConstants : register(b0)
 {
+    float4x4 lightViewProj;
     float4x4 mvp[MAX_INSTANCES];
     float4x4 model[MAX_INSTANCES];
     float4 colors[MAX_INSTANCES];
+    
 };
 
 cbuffer PixelShaderConstants : register(b1)
@@ -29,6 +31,7 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float4 color : COLOR;
+    float4 lightSpacePos : TEXCOORD;
 };
 
 float3x3 extractRot(float4x4 model)
@@ -60,8 +63,14 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.position = mul(float4(position, 1.0f), mvp[instanceID]);
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
     result.color = colors[instanceID];
+    float4 modelPos = mul(float4(position, 1.0f), model[instanceID]);
+    result.lightSpacePos = mul(modelPos, lightViewProj);
     return result;
 }
+
+Texture2D<float> shadowTexture : register(t0);
+SamplerComparisonState shadowSampler : register(s0);
+
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
@@ -72,6 +81,37 @@ float4 PSMain(PSInput input) : SV_TARGET
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
     float4 baseColor = input.color;
     float ambient = 0.3f;
-    return baseColor * (diffuse + ambient + specular);
+    //return baseColor * (diffuse + ambient + specular);
+    
+    float margin = asin(saturate(diffuse));
+    float epsilon = 0.001 / margin;
+    //float epsilon = 0.05;
+    epsilon = clamp(epsilon, 0.0, 0.1);
+    
+    uint width;
+    uint height;
+    shadowTexture.GetDimensions(width, height);
+    
+    float2 shadowTexCoords;
+    shadowTexCoords.x = 0.5f + (input.lightSpacePos.x / input.lightSpacePos.w * 0.5f);
+    shadowTexCoords.y = 0.5f - (input.lightSpacePos.y / input.lightSpacePos.w * 0.5);
+
+    float pixelDepth = input.lightSpacePos.z / input.lightSpacePos.w;
+    
+
+    float shadowFactor = 0.0f;
+    if ((saturate(shadowTexCoords.x) == shadowTexCoords.x) &&
+			(saturate(shadowTexCoords.y) == shadowTexCoords.y) &&
+			(pixelDepth < 1.0f))
+    {
+        shadowFactor = shadowTexture.SampleCmpLevelZero(shadowSampler, shadowTexCoords, pixelDepth - epsilon);
+    }
+    else
+    {
+        shadowFactor = 1.0f;
+    }
+    
+    float4 lighting = (diffuse * shadowFactor + ambient + specular * shadowFactor) * baseColor;
+    return lighting;
 
 }

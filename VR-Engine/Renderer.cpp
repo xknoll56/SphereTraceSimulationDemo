@@ -255,19 +255,34 @@ void Renderer::LoadAssets()
     // Create the root signiture for the wire frame pipeline
     {
 
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-        CD3DX12_ROOT_PARAMETER1 rootParameters[2];
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
 
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
         rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
         rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Allow input layout and deny uneccessary access to certain pipeline stages.
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-        mRootSignitureInstanced.init(m_device.Get(), rootParameters, 2, rootSignatureFlags);
+        D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
+        staticSamplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+        staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // Specify the comparison function
+        staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+        staticSamplerDesc.MinLOD = 0.0f;
+        staticSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+        staticSamplerDesc.ShaderRegister = 0;
+        staticSamplerDesc.RegisterSpace = 0;
+        staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // Set the shader visibility as needed
+
+        mRootSignitureInstanced.init(m_device.Get(), rootParameters, 3, rootSignatureFlags, &staticSamplerDesc, 1);
     }
 
     // Create the pipeline state, which includes compiling and loading shaders.
@@ -652,7 +667,7 @@ void Renderer::writeShadowDepthBufferToDDS()
                 // Access depth value at (x, y)
                 float depthValue = pDepthBuffer[y * (footprint.Footprint.RowPitch / sizeof(float)) + x];
                 // Use depthValue as needed
-                printf("value: %f\n", depthValue);
+                //printf("value: %f\n", depthValue);
                 int offset = (y * width + x) * 3;
                 image[offset] = static_cast<unsigned char>(depthValue * 255);  // R
                 image[offset + 1] = 0;  // G
@@ -703,7 +718,7 @@ void Renderer::PopulateCommandList()
         m_commandList->ResourceBarrier(1, &transition);
 
         // 2. Set the pipeline state and root signature
-        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
+       
 
         // 3. Set the viewport and scissor rect
         D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMapWidth), static_cast<float>(shadowMapHeight), 0.0f, 1.0f };
@@ -730,8 +745,10 @@ void Renderer::PopulateCommandList()
         isShadowPass = true;
         scene.pBoundCamera = &directionalLightCamera;
         m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
         scene.draw();
         m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
         Renderer::instance.drawAddedPrimitiveInstance();
 
         // 7. Transition the depth buffer to a readable state (optional)
@@ -1024,6 +1041,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
         perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
             model));
         perPrimitiveInstanceBufferCountsShadows[type]++;
+        perPrimitiveInstanceBufferCountsShadows[type] %= 400;
     }
     else
     {
@@ -1034,6 +1052,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
         perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
 
         perPrimitiveInstanceBufferCounts[type]++;
+        perPrimitiveInstanceBufferCounts[type] %= 400;
     }
 }
 
@@ -1047,6 +1066,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
         perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
             model));
         perPrimitiveInstanceBufferCountsShadows[type]++;
+        perPrimitiveInstanceBufferCountsShadows[type] %= 400;
     }
     else
     {
@@ -1055,6 +1075,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
         perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
             perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
         perPrimitiveInstanceBufferCounts[type]++;
+        perPrimitiveInstanceBufferCounts[type] %= 400;
     }
 }
 
@@ -1095,10 +1116,12 @@ void Renderer::drawAddedPrimitiveInstance()
             m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
             m_commandList->SetGraphicsRootSignature(mRootSignitureInstanced.pRootSigniture);
+            perPrimitiveInstanceBuffer[type].lightViewProj = lightViewProjection;
             perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perPrimitiveInstanceBuffer[type]);
             perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
             pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
             pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+            m_commandList->SetGraphicsRootDescriptorTable(2, shadowSrvGpuHandle);
 
             switch (type)
             {

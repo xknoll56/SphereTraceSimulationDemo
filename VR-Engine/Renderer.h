@@ -64,6 +64,7 @@ public:
 
     struct alignas(256) VertexShaderInstancedConstantBuffer
     {
+        ST_Matrix4 lightViewProj;
         ST_Matrix4 mvp[400];
         ST_Matrix4 model[400];
         ST_Vector4 colors[400];
