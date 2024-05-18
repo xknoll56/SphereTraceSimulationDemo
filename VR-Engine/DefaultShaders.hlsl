@@ -99,23 +99,27 @@ float4 PSMain(PSInput input) : SV_TARGET
     //float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
     //float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
     //float ambient = 0.3f;
-    //return baseColor * (diffuse + ambient + specular);
+
     
-    float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
-    float3 normalizedLightDir = normalize(lightDir.xyz);
-    float3 halfVec = normalize(normalizedLightDir + viewDir);
-    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
-    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
-    float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
-    float ambient = 0.3f;
+   // float margin = asin(saturate(diffuse));
+    //float epsilon = 0.001 / margin;
+    float epsilon = 0.05;
+   // epsilon = clamp(epsilon, 0.0, 0.1);
+    
+    uint width;
+    uint height;
+    shadowTexture.GetDimensions(width, height);
 
-    // Calculate shadow factor
-    //float shadowFactor = shadowTexture.SampleCmpLevelZero(shadowSampler, input.lightSpacePos.xy / input.lightSpacePos.w, input.lightSpacePos.z / input.lightSpacePos.w);
+    float pixelDepth = input.lightSpacePos.z / input.lightSpacePos.w;
+    float shadowFactor = shadowTexture.SampleCmpLevelZero(shadowSampler, input.lightSpacePos.xy / input.lightSpacePos.w, pixelDepth);
 
+    float lighting = 0.0f;
+    if(shadowFactor>epsilon)
+        lighting = 1.0f;
     // Apply shadow to the lighting
-    //float4 lighting = (diffuse + ambient + specular) * lightColor * shadowFactor;
-    float4 lighting = (diffuse + ambient + specular) * lightColor;
+    //float4 lighting = (diffuse * shadowFactor + ambient + specular * shadowFactor) * lightColor;
+    //float4 lighting = (diffuse + ambient + specular) * lightColor;
 
-    return baseColor ;
+    return lighting * float4(1, 1, 1, 1);
 
 }

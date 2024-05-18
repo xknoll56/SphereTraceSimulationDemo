@@ -57,6 +57,7 @@ public:
     {
         ST_Matrix4 mvp;
         ST_Matrix4 model;
+        ST_Matrix4 lightViewProjection;
         ST_Vector4 color;
         float colorMix;
     };
@@ -87,6 +88,7 @@ public:
     Camera mainCamera;
     Camera directionalLightCamera;
     ST_Vector3 dirLightOffset;
+    ST_Matrix4 lightViewProjection;
 
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
@@ -165,11 +167,14 @@ private:
 
     Time timer;
 
+    ComPtr<ID3D12Debug> debugController;
+
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();
     void MoveToNextFrame();
     void WaitForGpu();
+    void writeShadowDepthBufferToDDS();
 
 public:
 

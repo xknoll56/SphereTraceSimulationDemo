@@ -44,6 +44,33 @@ inline void ThrowIfFailed(HRESULT hr)
     }
 }
 
+inline void PrintBlob(ID3DBlob* blob) {
+    if (!blob) {
+        printf("Error: Invalid blob pointer.\n");
+        return;
+    }
+
+    const uint8_t* data = static_cast<const uint8_t*>(blob->GetBufferPointer());
+    size_t size = blob->GetBufferSize();
+
+    printf("Blob size: %zu bytes\n", size);
+
+    // Check if the blob contains an error message (assuming it's a null-terminated string)
+    if (data[size - 1] == '\0') {
+        printf("Error message: %s\n", data);
+    }
+    else {
+        printf("Blob content:\n");
+
+        for (size_t i = 0; i < size; ++i) {
+            printf("%02X ", static_cast<int>(data[i]));
+            if ((i + 1) % 16 == 0 || i == size - 1) {
+                printf("\n");
+            }
+        }
+    }
+}
+
 inline void GetAssetsPath(_Out_writes_(pathSize) WCHAR* path, UINT pathSize)
 {
     if (path == nullptr)

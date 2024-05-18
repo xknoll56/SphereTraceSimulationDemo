@@ -172,6 +172,8 @@ void Renderer::LoadPipeline()
 // Load the sample assets.
 void Renderer::LoadAssets()
 {
+
+
     // Create a root signature consisting of a descriptor table with a single CBV.
     {
 
@@ -210,7 +212,7 @@ void Renderer::LoadAssets()
         staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
         staticSamplerDesc.MinLOD = 0.0f;
         staticSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-        staticSamplerDesc.ShaderRegister = 0;
+        staticSamplerDesc.ShaderRegister =1;
         staticSamplerDesc.RegisterSpace = 0;
         staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // Set the shader visibility as needed
 
@@ -233,7 +235,7 @@ void Renderer::LoadAssets()
         //CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
         //rootSignatureDesc.Init_1_1(2, rootParameters, 1, &sampler, rootSignatureFlags);
 
-        mRootSigniture.init(m_device.Get(), rootParameters, 4, rootSignatureFlags, samplers, 1);
+        mRootSigniture.init(m_device.Get(), rootParameters, 4, rootSignatureFlags, samplers, 2);
     }
 
     // Create the pipeline state, which includes compiling and loading shaders.
@@ -560,76 +562,8 @@ inline size_t Align(size_t value, size_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 };
 
-void Renderer::PopulateCommandList()
+void Renderer::writeShadowDepthBufferToDDS()
 {
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU; apps should use 
-    // fences to determine GPU execution progress.
-    ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
-
-    // However, when ExecuteCommandList() is called on a particular command 
-    // list, that command list can then be reset at any time and must be before 
-    // re-recording.
-    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), mPipeline.pPipelineState));
-
-    // Set necessary state.
-    
-    dhp.bindDescriptorHeap(m_commandList.Get());
-    cbaStack.resetAllStackIndices();
-
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    {
-        // 1. Transition the depth buffer to the depth write state
-        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
-            D3D12_RESOURCE_STATE_DEPTH_WRITE
-        );
-
-        m_commandList->ResourceBarrier(1, &transition);
-
-        // 2. Set the pipeline state and root signature
-        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-
-        // 3. Set the viewport and scissor rect
-        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMapWidth), static_cast<float>(shadowMapHeight), 0.0f, 1.0f };
-        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMapWidth), static_cast<LONG>(shadowMapHeight) };
-        m_commandList->RSSetViewports(1, &viewport);
-        m_commandList->RSSetScissorRects(1, &scissorRect);
-
-        // 4. Set the depth stencil view
-        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
-
-        // 5. Clear the depth buffer
-        m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        //Set the pixel shader vertex buffer data and bind it to Register 1
-        directionalLightCamera.cameraPos = sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset);
-        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
-
-        // 6. Draw the scene (bind vertex/index buffers, set the root parameters, and issue draw calls)
-        isShadowPass = true;
-        scene.pBoundCamera = &directionalLightCamera;
-        m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
-        scene.draw();
-        m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
-        Renderer::instance.drawAddedPrimitiveInstance();
-
-        // 7. Transition the depth buffer to a readable state (optional)
-        transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        );
-        m_commandList->ResourceBarrier(1, &transition);
-
-    }
     if (Input::keysDown[VK_SPACE])
     {
         m_commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
@@ -709,7 +643,7 @@ void Renderer::PopulateCommandList()
         int height = shadowMapHeight; // example height
 
         // Create an example image: a gradient from black to white
-        std::vector<unsigned char> image(width* height * 3);
+        std::vector<unsigned char> image(width * height * 3);
 
         for (int y = 0; y < shadowMapHeight; ++y) {
             for (int x = 0; x < shadowMapWidth; ++x) {
@@ -719,7 +653,7 @@ void Renderer::PopulateCommandList()
                 //printf("value: %f\n", depthValue);
                 int offset = (y * width + x) * 3;
                 image[offset] = static_cast<unsigned char>(depthValue * 255);  // R
-                image[offset + 1] =0;  // G
+                image[offset + 1] = 0;  // G
                 image[offset + 2] = 0;  // B
             }
         }
@@ -728,6 +662,81 @@ void Renderer::PopulateCommandList()
 
         // 10. Unmap the readback buffer
         readbackBuffer->Unmap(0, nullptr);
+    }
+
+}
+
+void Renderer::PopulateCommandList()
+{
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU; apps should use 
+    // fences to determine GPU execution progress.
+    ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
+
+    // However, when ExecuteCommandList() is called on a particular command 
+    // list, that command list can then be reset at any time and must be before 
+    // re-recording.
+    ThrowIfFailed(m_commandList->Reset(m_commandAllocators[m_frameIndex].Get(), mPipeline.pPipelineState));
+
+    // Set necessary state.
+    
+    dhp.bindDescriptorHeap(m_commandList.Get());
+    cbaStack.resetAllStackIndices();
+
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    //********************************************************SHADOW PASS************************************************************************************************
+    {
+        // 1. Transition the depth buffer to the depth write state
+        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            shadowDepthBuffer.Get(),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
+            D3D12_RESOURCE_STATE_DEPTH_WRITE
+        );
+
+        m_commandList->ResourceBarrier(1, &transition);
+
+        // 2. Set the pipeline state and root signature
+        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
+
+        // 3. Set the viewport and scissor rect
+        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMapWidth), static_cast<float>(shadowMapHeight), 0.0f, 1.0f };
+        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMapWidth), static_cast<LONG>(shadowMapHeight) };
+        m_commandList->RSSetViewports(1, &viewport);
+        m_commandList->RSSetScissorRects(1, &scissorRect);
+
+        // 4. Set the depth stencil view
+        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
+
+        // 5. Clear the depth buffer
+        m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+        //Set the pixel shader vertex buffer data and bind it to Register 1
+        directionalLightCamera.cameraPos = sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset);
+        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
+        directionalLightCamera.cameraSetViewMatrix();
+        lightViewProjection = sphereTraceMatrixMult(directionalLightCamera.projectionMatrix, directionalLightCamera.viewMatrix);
+
+        // 6. Draw the scene (bind vertex/index buffers, set the root parameters, andsa issue draw calls)
+        isShadowPass = true;
+        scene.pBoundCamera = &directionalLightCamera;
+        m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
+        scene.draw();
+        m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
+        Renderer::instance.drawAddedPrimitiveInstance();
+
+        // 7. Transition the depth buffer to a readable state (optional)
+        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+            shadowDepthBuffer.Get(),
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        );
+        m_commandList->ResourceBarrier(1, &transition);
+
     }
 
     //********************************************************RENDER PASS************************************************************************************************
@@ -817,6 +826,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = 0.0f;
+    m_constantBufferData.lightViewProjection = lightViewProjection;
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -826,6 +836,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -855,6 +866,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.color = color;
     m_constantBufferData.colorMix = 1.0f;
+    m_constantBufferData.lightViewProjection = lightViewProjection;
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     if (isShadowPass)
     {
@@ -864,6 +876,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -892,6 +905,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
+    m_constantBufferData.lightViewProjection = lightViewProjection;
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -901,6 +915,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
