@@ -121,10 +121,16 @@ struct Pipeline
         {
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
+            psoDesc.RasterizerState.DepthBiasClamp = 0.0f;
+            psoDesc.RasterizerState.DepthBias = 1000;
+            psoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
+            psoDesc.RasterizerState.DepthClipEnable = TRUE;
         }
 
         psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
         CD3DX12_DEPTH_STENCIL_DESC1 depthDesc(D3D12_DEFAULT);
+        depthDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+        depthDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
         psoDesc.DepthStencilState = depthDesc;
         psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         psoDesc.SampleMask = UINT_MAX;

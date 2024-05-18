@@ -182,7 +182,7 @@ void Renderer::LoadAssets()
          ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-         ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+         ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
          rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
          rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
          rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
@@ -444,6 +444,8 @@ void Renderer::LoadAssets()
             IID_PPV_ARGS(&shadowDepthBuffer)
         ));
 
+
+
         D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
         handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         m_device->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, handle);
@@ -650,7 +652,7 @@ void Renderer::writeShadowDepthBufferToDDS()
                 // Access depth value at (x, y)
                 float depthValue = pDepthBuffer[y * (footprint.Footprint.RowPitch / sizeof(float)) + x];
                 // Use depthValue as needed
-                //printf("value: %f\n", depthValue);
+                printf("value: %f\n", depthValue);
                 int offset = (y * width + x) * 3;
                 image[offset] = static_cast<unsigned char>(depthValue * 255);  // R
                 image[offset + 1] = 0;  // G
@@ -662,6 +664,8 @@ void Renderer::writeShadowDepthBufferToDDS()
 
         // 10. Unmap the readback buffer
         readbackBuffer->Unmap(0, nullptr);
+
+        exit(0);
     }
 
 }
@@ -716,7 +720,8 @@ void Renderer::PopulateCommandList()
         m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
         //Set the pixel shader vertex buffer data and bind it to Register 1
-        directionalLightCamera.cameraPos = sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset);
+        ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
+        directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 15.0f);
         Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
         directionalLightCamera.cameraSetViewMatrix();
         lightViewProjection = sphereTraceMatrixMult(directionalLightCamera.projectionMatrix, directionalLightCamera.viewMatrix);
@@ -738,7 +743,7 @@ void Renderer::PopulateCommandList()
         m_commandList->ResourceBarrier(1, &transition);
 
     }
-
+    writeShadowDepthBufferToDDS();
     //********************************************************RENDER PASS************************************************************************************************
     //********************************************************RENDER PASS************************************************************************************************
     //********************************************************RENDER PASS************************************************************************************************
