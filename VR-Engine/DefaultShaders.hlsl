@@ -13,6 +13,7 @@ cbuffer VertexShaderConstantBuffer : register(b0)
 {
     float4x4 mvp;
     float4x4 model;
+    float4x4 lightViewProj; 
     float4 color;
     float colorMix;
 };
@@ -32,10 +33,25 @@ struct PSInput
     float2 uv : TEXCOORD;
     float4 color : COLOR;
     float colorMix : TEXCOORD1;
+    float4 lightSpacePos : TEXCOORD2;
 };
 
 Texture2D g_texture : register(t0);
 SamplerState g_sampler : register(s0);
+
+Texture2D<float> shadowTexture : register(t1);
+SamplerComparisonState shadowSampler : register(s1)
+{
+    Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+    AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // Specify the comparison function
+    BorderColor = float4(0, 0, 0, 0); // Adjust as needed
+    MaxAnisotropy = 1; // Adjust as needed
+    MaxLOD = D3D12_FLOAT32_MAX;
+    MinLOD = 0;
+};
 
 float3x3 extractRot(float4x4 model)
 {
@@ -69,11 +85,22 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.color = color;
     result.colorMix = colorMix;
 
+    result.lightSpacePos = mul(float4(position, 1.0f), lightViewProj);
+    
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
+    //float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
+    //float3 normalizedLightDir = normalize(lightDir.xyz);
+    //float3 halfVec = normalize(normalizedLightDir + viewDir);
+    //float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
+    //float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
+    //float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
+    //float ambient = 0.3f;
+    //return baseColor * (diffuse + ambient + specular);
+    
     float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
     float3 normalizedLightDir = normalize(lightDir.xyz);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
@@ -81,6 +108,14 @@ float4 PSMain(PSInput input) : SV_TARGET
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
     float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
     float ambient = 0.3f;
-    return baseColor * (diffuse + ambient + specular);
+
+    // Calculate shadow factor
+    //float shadowFactor = shadowTexture.SampleCmpLevelZero(shadowSampler, input.lightSpacePos.xy / input.lightSpacePos.w, input.lightSpacePos.z / input.lightSpacePos.w);
+
+    // Apply shadow to the lighting
+    //float4 lighting = (diffuse + ambient + specular) * lightColor * shadowFactor;
+    float4 lighting = (diffuse + ambient + specular) * lightColor;
+
+    return baseColor ;
 
 }

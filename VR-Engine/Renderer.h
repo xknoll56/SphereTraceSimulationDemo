@@ -105,7 +105,7 @@ private:
     // available.
     // It should be noted that excessive buffering of frames dependent on user input
     // may result in noticeable latency in your app.
-    static const UINT FrameCount = 10;
+    static const UINT FrameCount = 3;
     static const UINT TextureWidth = 256;
     static const UINT TextureHeight = 256;
     static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
@@ -149,6 +149,8 @@ private:
     ComPtr<ID3D12Resource> shadowDepthBuffer;
     const UINT shadowMapWidth = 1024;
     const UINT shadowMapHeight = 1024;
+    D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpuHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpuHandle;
     bool isShadowPass = false;
 
     //ConstantBufferAccessor mConstantBufferAccessors[500];

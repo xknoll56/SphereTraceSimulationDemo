@@ -19,7 +19,7 @@ struct RootSigniture
     }
 
 
-    void init(ID3D12Device* pDevice, CD3DX12_ROOT_PARAMETER1* rootParameters, UINT numRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags, D3D12_STATIC_SAMPLER_DESC samplerDesc)
+    void init(ID3D12Device* pDevice, CD3DX12_ROOT_PARAMETER1* rootParameters, UINT numRootParameters, D3D12_ROOT_SIGNATURE_FLAGS flags, D3D12_STATIC_SAMPLER_DESC* samplerDescs, UINT numSamplers)
     {
 
         if (FAILED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
@@ -28,7 +28,7 @@ struct RootSigniture
         }
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init_1_1(numRootParameters, rootParameters, 1, &samplerDesc, flags);
+        rootSignatureDesc.Init_1_1(numRootParameters, rootParameters, numSamplers, samplerDescs, flags);
 
         ComPtr<ID3DBlob> signature;
         ComPtr<ID3DBlob> error;
@@ -65,9 +65,35 @@ struct Pipeline
 #else
         UINT compileFlags = 0;
 #endif
+        ID3DBlob* shaderCompileErrorsBlob;
+        HRESULT hResult = D3DCompileFromFile((LPCWSTR)vertexShaderPath, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, &shaderCompileErrorsBlob);
 
-        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)vertexShaderPath, nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)pixelShaderPath, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+        if (FAILED(hResult))
+        {
+            const char* errorString = NULL;
+            if (hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                errorString = "could not compile, file not found.";
+            else if (shaderCompileErrorsBlob)
+            {
+                errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
+                shaderCompileErrorsBlob->Release();
+            }
+            MessageBoxA(0, errorString, "Shader compile error", MB_ICONERROR | MB_OK);
+        }
+
+        ThrowIfFailed(D3DCompileFromFile((LPCWSTR)pixelShaderPath, nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, &shaderCompileErrorsBlob));
+        if (FAILED(hResult))
+        {
+            const char* errorString = NULL;
+            if (hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                errorString = "could not compile, file not found.";
+            else if (shaderCompileErrorsBlob)
+            {
+                errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
+                shaderCompileErrorsBlob->Release();
+            }
+            MessageBoxA(0, errorString, "Shader compile error", MB_ICONERROR | MB_OK);
+        }
 
         // Describe and create the graphics pipeline state object (PSO).
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};

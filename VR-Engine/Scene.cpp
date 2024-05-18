@@ -74,7 +74,7 @@ void Scene::draw()
         }
     }
     //Renderer::instance.drawPrimitive(Renderer::instance.directionalLightCamera.cameraPos, gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
-   // Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
+    Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
     Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, ST_VECTOR4(0,1,1,1), PRIMITIVE_PLANE);
 
 }

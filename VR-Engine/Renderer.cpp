@@ -175,14 +175,16 @@ void Renderer::LoadAssets()
     // Create a root signature consisting of a descriptor table with a single CBV.
     {
 
-         CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
-         CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+         CD3DX12_DESCRIPTOR_RANGE1 ranges[4];
+         CD3DX12_ROOT_PARAMETER1 rootParameters[4];
          ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+         ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
          rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
          rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
          rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+         rootParameters[3].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -199,6 +201,25 @@ void Renderer::LoadAssets()
         sampler.RegisterSpace = 0;
         sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
+        D3D12_STATIC_SAMPLER_DESC staticSamplerDesc = {};
+        staticSamplerDesc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+        staticSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        staticSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL; // Specify the comparison function
+        staticSamplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+        staticSamplerDesc.MinLOD = 0.0f;
+        staticSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+        staticSamplerDesc.ShaderRegister = 0;
+        staticSamplerDesc.RegisterSpace = 0;
+        staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // Set the shader visibility as needed
+
+        D3D12_STATIC_SAMPLER_DESC samplers[2] =
+        {
+            sampler,
+            staticSamplerDesc
+        };
+
 
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -212,7 +233,7 @@ void Renderer::LoadAssets()
         //CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
         //rootSignatureDesc.Init_1_1(2, rootParameters, 1, &sampler, rootSignatureFlags);
 
-        mRootSigniture.init(m_device.Get(), rootParameters, 3, rootSignatureFlags, sampler);
+        mRootSigniture.init(m_device.Get(), rootParameters, 4, rootSignatureFlags, samplers, 1);
     }
 
     // Create the pipeline state, which includes compiling and loading shaders.
@@ -410,36 +431,6 @@ void Renderer::LoadAssets()
 
         m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-        //// Define the depth buffer's properties
-        //D3D12_RESOURCE_DESC depthBufferDesc = {};
-        //depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        //depthBufferDesc.Alignment = 0;
-        //depthBufferDesc.Width = shadowMapWidth;
-        //depthBufferDesc.Height = shadowMapHeight;
-        //depthBufferDesc.DepthOrArraySize = 1;
-        //depthBufferDesc.MipLevels = 1;
-        //depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT; // 24-bit depth + 8-bit stencil
-        //depthBufferDesc.SampleDesc.Count = 1;
-        //depthBufferDesc.SampleDesc.Quality = 0;
-        //depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        //depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-
-        //// Specify clear value for the depth buffer
-        //D3D12_CLEAR_VALUE clearValue = {};
-        //clearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-        //clearValue.DepthStencil.Depth = 1.0f;
-        //clearValue.DepthStencil.Stencil = 0;
-
-        //// Create the depth buffer resource
-        //heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        //m_device->CreateCommittedResource(
-        //    &heapProps,
-        //    D3D12_HEAP_FLAG_NONE,
-        //    &depthBufferDesc,
-        //    D3D12_RESOURCE_STATE_DEPTH_WRITE,
-        //    &clearValue,
-        //    IID_PPV_ARGS(&shadowDepthBuffer)
-        //);
 
         resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, shadowMapWidth, shadowMapHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
         ThrowIfFailed(m_device->CreateCommittedResource(
@@ -454,6 +445,19 @@ void Renderer::LoadAssets()
         D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
         handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         m_device->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, handle);
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+        shadowSrvCpuHandle = dhp.getCpuHandle(m_device.Get());
+        m_device->CreateShaderResourceView(shadowDepthBuffer.Get(), &srvDesc, shadowSrvCpuHandle);
+        shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);
     }
 
     //{
@@ -755,7 +759,7 @@ void Renderer::PopulateCommandList()
 
         //draw scene
         isShadowPass = false;
-        //scene.pBoundCamera = &mainCamera;
+        scene.pBoundCamera = &mainCamera;
         scene.draw();
         Renderer::instance.drawAddedPrimitiveInstance();
 
