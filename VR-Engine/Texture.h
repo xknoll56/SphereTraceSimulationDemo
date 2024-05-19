@@ -1,6 +1,5 @@
 #pragma once
-#include <fstream>
-
+#include "stb_image.h"
 
 struct Texture
 {
@@ -66,6 +65,34 @@ struct Texture
             D3D12_CPU_DESCRIPTOR_HANDLE handle = dhp.getCpuHandle(pDevice);
             pDevice->CreateShaderResourceView(m_texture, &srvDesc, handle);
             gpuDescriptorHandle = dhp.GpuHandleFromCpuHandle(handle);
+        }
+    }
+
+    void expandRGBToRGBA(const uint8_t* rgbData, uint32_t width, uint32_t height, std::vector<uint8_t>& rgbaData) {
+        rgbaData.resize(width * height * 4);
+        for (uint32_t i = 0, j = 0; i < width * height * 3; i += 3, j += 4) {
+            rgbaData[j] = rgbData[i];       // R
+            rgbaData[j + 1] = rgbData[i + 1]; // G
+            rgbaData[j + 2] = rgbData[i + 2]; // B
+            rgbaData[j + 3] = 255;          // A (fully opaque)
+        }
+    }
+
+
+    void init(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* textureUploadHeap, DescriptorHandleProvider& dhp,
+        const char* filePath)
+    {
+        int width, height, channels;
+        unsigned char* data = stbi_load(filePath, &width, &height, &channels, 0);
+        if (channels == 3)
+        {
+            std::vector<uint8_t> rgbaData;
+            expandRGBToRGBA(data, width, height, rgbaData);
+            this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, rgbaData.data());
+        }
+        else
+        {
+            this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, data);
         }
     }
 

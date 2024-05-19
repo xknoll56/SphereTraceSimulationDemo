@@ -150,6 +150,7 @@
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceRigidBody.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceTag.c" />
+    <ClCompile Include="stb_image_implementation.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -181,6 +182,7 @@
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceRigidBody.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceSpacialPartition.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceTag.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="Time.h" />

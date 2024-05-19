@@ -421,8 +421,10 @@ void Renderer::LoadAssets()
         255, 255, 255, 255
     };
 
-    texture.init(m_device.Get(), m_commandList.Get(),textureUploadHeap.Get(), dhp,
+    checkers.init(m_device.Get(), m_commandList.Get(),textureUploadHeap.Get(), dhp,
         2, 2, texBytes);
+    
+    tile.init(m_device.Get(), m_commandList.Get(), textureUploadHeap.Get(), dhp, "Textures/tile360.png");
 
     //create dsv
     // Create the depth stencil view.
@@ -870,8 +872,6 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     }
-    mMonkeyVB.draw(m_commandList.Get());
-    return;
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -965,6 +965,32 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     case PRIMITIVE_CYLINDER:
         mCylinderVB.draw(m_commandList.Get());
     }
+}
+
+void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, VertexBuffer& vertexBuffer)
+{
+    m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.colorMix = colorMix;
+    m_constantBufferData.color = color;
+    m_constantBufferData.lightViewProjection = lightViewProjection;
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipeline.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        texture.bind(m_commandList.Get(), 2);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    }
+    mMonkeyVB.draw(m_commandList.Get());
 }
 
 
