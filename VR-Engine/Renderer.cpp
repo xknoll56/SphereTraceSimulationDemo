@@ -386,6 +386,8 @@ void Renderer::LoadAssets()
     mLineVB = VertexBuffer::createLine(m_device.Get());
     mCylinderVB = VertexBuffer::createCylinder(m_device.Get());
 
+    mMonkeyVB = VertexBuffer::readFromObj(m_device.Get(), "monkey.obj");
+
     //create constant buffer
     //for(int i = 0; i<400; i++)
     //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
@@ -868,6 +870,8 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     }
+    mMonkeyVB.draw(m_commandList.Get());
+    return;
     switch (type)
     {
     case PRIMITIVE_PLANE:
@@ -965,32 +969,32 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 
 
 
-//void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
-//{
-//    if (isShadowPass)
-//		return;
-//	ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
-//		sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-//	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-//	m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
-//	m_constantBufferData.color = color;
-//	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-//	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-//	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
-//
-//	switch (type)
-//    {
-//    case PRIMITIVE_PLANE:
-//        mGridVB.draw(m_commandList.Get());
-//        break;
-//    case PRIMITIVE_BOX:
-//        mCubeWireFrameVB.draw(m_commandList.Get());
-//        break;
-//    case PRIMITIVE_SPHERE:
-//        mSphereWireFrameVB.draw(m_commandList.Get());
-//        break;
-//    }
-//}
+void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
+{
+    if (isShadowPass)
+		return;
+	ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+		sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
+	m_constantBufferData.color = color;
+	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+
+	switch (type)
+    {
+    case PRIMITIVE_PLANE:
+        mGridVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_BOX:
+        mCubeWireFrameVB.draw(m_commandList.Get());
+        break;
+    case PRIMITIVE_SPHERE:
+        mSphereWireFrameVB.draw(m_commandList.Get());
+        break;
+    }
+}
 
 void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color)
 {

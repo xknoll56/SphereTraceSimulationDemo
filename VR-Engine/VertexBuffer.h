@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stdafx.h"
+#include <sstream>
 
 struct Vertex
 {
@@ -523,6 +524,121 @@ struct VertexBuffer
         }
         VertexBuffer vb;
         vb.init(pDevice,verts, 2880 * sizeof(float), 8 * sizeof(float));
+        return vb;
+    }
+
+    static std::vector<std::string> splitString(const std::string& str, char delimiter) {
+        std::vector<std::string> result;
+        std::istringstream iss(str);
+        std::string token;
+
+        while (std::getline(iss, token, delimiter)) {
+            result.push_back(token);
+        }
+
+        return result;
+    }
+
+    static VertexBuffer readFromObj(ID3D12Device* pDevice, const char* objPath)
+    {
+        VertexBuffer vb;
+        vb.numVerts = 0;
+
+        std::ifstream inputFile(objPath);
+
+        if (!inputFile) {
+            return vb;
+        }
+
+        std::vector<ST_Vector3> positions;
+        std::vector<ST_Vector3> normals;
+        std::vector<ST_Vector2> uvs;
+        std::vector<Vertex> verts;
+
+
+        std::string line;
+        while (std::getline(inputFile, line)) {
+            std::vector<std::string> tokens = splitString(line, ' ');
+            std::stringstream ss;
+            if (tokens[0].compare("v") == 0)
+            {
+                ST_Vector3 pos;
+                ss = std::stringstream(tokens[1]);
+                ss >> pos.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> pos.y;
+                ss = std::stringstream(tokens[3]);
+                ss >> pos.z;
+                positions.push_back(pos);
+            }
+            else if (tokens[0].compare("vn") == 0)
+            {
+                ST_Vector3 norm;
+                ss = std::stringstream(tokens[1]);
+                ss >> norm.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> norm.y;
+                ss = std::stringstream(tokens[3]);
+                ss >> norm.z;
+                normals.push_back(norm);
+            }
+            else if (tokens[0].compare("vt") == 0)
+            {
+                ST_Vector2 uv;
+                ss = std::stringstream(tokens[1]);
+                ss >> uv.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> uv.y;
+                uvs.push_back(uv);
+            }
+            else if (tokens[0].compare("f") == 0)
+            {
+                Vertex vertex;
+                UINT index;
+                // Vertex 1
+                std::vector<std::string> faces = splitString(tokens[1], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index-1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index-1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index-1];
+                verts.push_back(vertex);
+
+                // Vertex 2
+                faces = splitString(tokens[2], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index-1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index-1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index-1];
+                verts.push_back(vertex);
+
+                // Vertex 3
+                faces = splitString(tokens[3], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index-1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index-1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index-1];
+                verts.push_back(vertex);
+            }
+        }
+
+        inputFile.close();
+
+        vb.init(pDevice, (float*)verts.data(), verts.size()*sizeof(Vertex), sizeof(Vertex));
         return vb;
     }
 };

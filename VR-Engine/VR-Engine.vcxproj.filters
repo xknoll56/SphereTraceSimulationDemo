@@ -16,6 +16,9 @@
     <Filter Include="SphereTrace">
       <UniqueIdentifier>{22ac887c-05e6-450b-9cca-2405edfb2858}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Models">
+      <UniqueIdentifier>{99b9d24b-5384-4de3-b4b5-5fa2ad36fe3a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Renderer.cpp">
@@ -199,5 +202,10 @@
     <FxCompile Include="ShadowPassInstanced.hlsl">
       <Filter>Resource Files</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="monkey.obj">
+      <Filter>Models</Filter>
+    </Object>
   </ItemGroup>
 </Project>

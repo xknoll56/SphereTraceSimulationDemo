@@ -32,6 +32,7 @@ using Microsoft::WRL::ComPtr;
 #include "Input.h"
 #include "Scene.h"
 
+
 class Renderer : public DXSample
 {
 public:
@@ -52,6 +53,7 @@ public:
     VertexBuffer mGridVB;
     VertexBuffer mLineVB;
     VertexBuffer mCylinderVB;
+    VertexBuffer mMonkeyVB;
 
     struct alignas(256) VertexShaderConstantBuffer
     {
@@ -90,41 +92,6 @@ public:
     Camera directionalLightCamera;
     ST_Vector3 dirLightOffset;
     ST_Matrix4 lightViewProjection;
-
-    struct PerPrimitiveInstanceBufferStack
-    {
-        UINT instancesPerBuffer;
-        UINT numStacks;
-        UINT count;
-        UINT constantBufferSize;
-
-        struct PerPrimitiveComponents
-        {
-            UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
-            void** perPrimitiveInstanceBuffers;
-            ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
-        };
-
-        std::vector<PerPrimitiveComponents> componentsStack;
-
-        PerPrimitiveInstanceBufferStack(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, UINT numStacks, UINT constantBufferSize, UINT instancesPerBuffer)
-        {
-            this->numStacks = numStacks;
-            this->constantBufferSize = constantBufferSize;
-            this->instancesPerBuffer = instancesPerBuffer;
-            componentsStack.reserve(numStacks);
-            for (int i = 0; i < numStacks; i++)
-            {
-                componentsStack[i].perPrimitiveInstanceBuffers = (void**)malloc(4 * sizeof(void*));
-                for (int i = 0; i < 4; i++)
-                {
-                    componentsStack[i].perPrimitiveInstanceBuffers[i] = malloc(constantBufferSize);
-                    componentsStack[i].perPrimitiveInstanceCBAAccessors[i].init(pDevice, dhp, componentsStack[i].perPrimitiveInstanceBuffers[i], constantBufferSize);
-                }
-            }
-            count = 0;
-        }
-    };
 
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
@@ -227,6 +194,7 @@ public:
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
     void drawAddedPrimitiveInstances();
+    void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawAddedWireFrameInstances();
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
