@@ -393,9 +393,11 @@ void Renderer::LoadAssets()
     cbaStack = ConstantBufferAccessorStack(3);
     pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer));
     for (int i = 0; i < 4; i++)
+    {
         perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
-    for (int i = 0; i < 4; i++)
+        perWireFramePrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
         perPrimitiveInstanceCBAAccessorsShadows[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBufferShadows[0], sizeof(VertexShaderInstancedConstantBufferShadows));
+    }
     UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 2000);
     UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
     cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
@@ -529,12 +531,14 @@ void Renderer::LoadAssets()
     //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
     dirLightOffset = ST_VECTOR3(0, 25, 0);
     directionalLightCamera = Camera::cameraConstruct(dirLightOffset, M_PI * 0.50f, -M_PI * 0.5f);
-    directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-15, 15, 15, -15, -40.0f, 40.0f, 1.0f);
+    directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-15, 15, 15, -15, -80.0f, 80.0f, 1.0f);
+    directionalLightCamera.cameraSetViewMatrix();
+    directionalLightCamera.cameraSetRightAndFwdVectors();
     mainCamera = Camera::cameraConstructDefault();
     mainCamera.cameraSetViewMatrix();
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
-    pixelShaderConstantBuffer.lightDir = ST_VECTOR4(0.5, 1, 0.5, 1);
+    pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
     scene.pBoundCamera = &mainCamera;
     scene.init();
 
@@ -749,7 +753,7 @@ void Renderer::PopulateCommandList()
         scene.draw();
         m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-        Renderer::instance.drawAddedPrimitiveInstance();
+        Renderer::instance.drawAddedPrimitiveInstances();
 
         // 7. Transition the depth buffer to a readable state (optional)
         transition = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -760,7 +764,7 @@ void Renderer::PopulateCommandList()
         m_commandList->ResourceBarrier(1, &transition);
 
     }
-    writeShadowDepthBufferToDDS();
+    //writeShadowDepthBufferToDDS();
     //********************************************************RENDER PASS************************************************************************************************
     //********************************************************RENDER PASS************************************************************************************************
     //********************************************************RENDER PASS************************************************************************************************
@@ -792,7 +796,8 @@ void Renderer::PopulateCommandList()
         isShadowPass = false;
         scene.pBoundCamera = &mainCamera;
         scene.draw();
-        Renderer::instance.drawAddedPrimitiveInstance();
+        drawAddedPrimitiveInstances();
+        drawAddedWireFrameInstances();
 
         // Indicate that the back buffer will now be used to present.
         resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -960,32 +965,32 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 
 
 
-void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
-{
-    if (isShadowPass)
-		return;
-	ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
-		sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
-	m_constantBufferData.color = color;
-	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
-	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
-
-	switch (type)
-    {
-    case PRIMITIVE_PLANE:
-        mGridVB.draw(m_commandList.Get());
-        break;
-    case PRIMITIVE_BOX:
-        mCubeWireFrameVB.draw(m_commandList.Get());
-        break;
-    case PRIMITIVE_SPHERE:
-        mSphereWireFrameVB.draw(m_commandList.Get());
-        break;
-    }
-}
+//void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
+//{
+//    if (isShadowPass)
+//		return;
+//	ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+//		sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+//	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+//	m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
+//	m_constantBufferData.color = color;
+//	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+//	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+//	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+//
+//	switch (type)
+//    {
+//    case PRIMITIVE_PLANE:
+//        mGridVB.draw(m_commandList.Get());
+//        break;
+//    case PRIMITIVE_BOX:
+//        mCubeWireFrameVB.draw(m_commandList.Get());
+//        break;
+//    case PRIMITIVE_SPHERE:
+//        mSphereWireFrameVB.draw(m_commandList.Get());
+//        break;
+//    }
+//}
 
 void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color)
 {
@@ -1079,7 +1084,51 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     }
 }
 
-void Renderer::drawAddedPrimitiveInstance()
+void Renderer::addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type)
+{
+    if (isShadowPass)
+        return;
+    perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    perWireFramePrimitiveInstanceBuffer[type].mvp[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+        perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]]));
+    perWireFramePrimitiveInstanceBuffer[type].colors[perWireFramePrimitiveInstanceBufferCounts[type]] = color;
+
+    perWireFramePrimitiveInstanceBufferCounts[type]++;
+    perWireFramePrimitiveInstanceBufferCounts[type] %= 400;
+}
+void Renderer::drawAddedWireFrameInstances()
+{
+    if (isShadowPass)
+        return;
+    for (int i = 0; i < 3; i++)
+    {
+        PrimitiveType type = (PrimitiveType)i;
+        if (perWireFramePrimitiveInstanceBufferCounts[type] == 0)
+            continue;
+        m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+        m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
+        perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perWireFramePrimitiveInstanceBuffer[type]);
+        perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
+
+        switch (type)
+        {
+        case PRIMITIVE_PLANE:
+            mGridVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
+            break;
+        case PRIMITIVE_BOX:
+            mCubeWireFrameVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
+            break;
+        case PRIMITIVE_SPHERE:
+            mSphereWireFrameVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
+            break;
+        }
+        perWireFramePrimitiveInstanceBufferCounts[type] = 0;
+    }
+}
+
+void Renderer::drawAddedPrimitiveInstances()
 {
     for (int i = 0; i < 4; i++)
     {

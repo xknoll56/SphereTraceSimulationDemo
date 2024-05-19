@@ -70,7 +70,8 @@ void Scene::draw()
         {
             int index = i * 20 + j;
             //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
-            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
         }
     }
 
@@ -81,11 +82,12 @@ void Scene::draw()
             int index = i * 20 + j;
             //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 4, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
             Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.1, 4, j*1.1), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.1, 4, j * 1.1), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
         }
     }
     //Renderer::instance.drawPrimitive(Renderer::instance.directionalLightCamera.cameraPos, gQusaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
     //Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
     Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
-    Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, ST_VECTOR4(0,1,1,1), PRIMITIVE_PLANE);
+    //Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, gVector4ColorRed, PRIMITIVE_PLANE);
 
 }

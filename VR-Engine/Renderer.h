@@ -64,10 +64,10 @@ public:
 
     struct alignas(256) VertexShaderInstancedConstantBuffer
     {
-        ST_Matrix4 lightViewProj;
         ST_Matrix4 mvp[400];
         ST_Matrix4 model[400];
         ST_Vector4 colors[400];
+        ST_Matrix4 lightViewProj;
     };
 
     struct alignas(256) VertexShaderInstancedConstantBufferShadows
@@ -91,9 +91,47 @@ public:
     ST_Vector3 dirLightOffset;
     ST_Matrix4 lightViewProjection;
 
+    struct PerPrimitiveInstanceBufferStack
+    {
+        UINT instancesPerBuffer;
+        UINT numStacks;
+        UINT count;
+        UINT constantBufferSize;
+
+        struct PerPrimitiveComponents
+        {
+            UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
+            void** perPrimitiveInstanceBuffers;
+            ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
+        };
+
+        std::vector<PerPrimitiveComponents> componentsStack;
+
+        PerPrimitiveInstanceBufferStack(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, UINT numStacks, UINT constantBufferSize, UINT instancesPerBuffer)
+        {
+            this->numStacks = numStacks;
+            this->constantBufferSize = constantBufferSize;
+            this->instancesPerBuffer = instancesPerBuffer;
+            componentsStack.reserve(numStacks);
+            for (int i = 0; i < numStacks; i++)
+            {
+                componentsStack[i].perPrimitiveInstanceBuffers = (void**)malloc(4 * sizeof(void*));
+                for (int i = 0; i < 4; i++)
+                {
+                    componentsStack[i].perPrimitiveInstanceBuffers[i] = malloc(constantBufferSize);
+                    componentsStack[i].perPrimitiveInstanceCBAAccessors[i].init(pDevice, dhp, componentsStack[i].perPrimitiveInstanceBuffers[i], constantBufferSize);
+                }
+            }
+            count = 0;
+        }
+    };
+
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
+    UINT perWireFramePrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
+    VertexShaderInstancedConstantBuffer perWireFramePrimitiveInstanceBuffer[4];
+    ConstantBufferAccessor perWireFramePrimitiveInstanceCBAAccessors[4];
     UINT perPrimitiveInstanceBufferCountsShadows[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBufferShadows perPrimitiveInstanceBufferShadows[4];
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessorsShadows[4];
@@ -188,8 +226,9 @@ public:
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
-    void drawAddedPrimitiveInstance();
-    void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
+    void drawAddedPrimitiveInstances();
+    void addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
+    void drawAddedWireFrameInstances();
     void drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_Vector4& color);
 };
 

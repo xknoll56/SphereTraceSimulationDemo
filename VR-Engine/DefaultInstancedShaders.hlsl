@@ -1,21 +1,11 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
 
 #define MAX_INSTANCES 400
 cbuffer VertexShaderConstants : register(b0)
 {
-    float4x4 lightViewProj;
     float4x4 mvp[MAX_INSTANCES];
     float4x4 model[MAX_INSTANCES];
     float4 colors[MAX_INSTANCES];
+    float4x4 lightViewProj;
     
 };
 
