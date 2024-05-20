@@ -96,7 +96,10 @@ struct Model
 				}
 			}
         }
-		materials[materialName] = mat;
+        if (!materialName.empty()) {
+            mat.hasTexture = hasTexture;
+            materials[materialName] = mat;
+        }
         inputFile.close();
 		return materials;
 	}
@@ -119,6 +122,7 @@ struct Model
 
         std::string line;
         std::string material;
+        std::string currentObject; 
         while (std::getline(inputFile, line)) {
             std::vector<std::string> tokens = StringManipulation::splitString(line, ' ');
             std::stringstream ss;
@@ -140,6 +144,7 @@ struct Model
                     model.components.push_back(modelComponent);
                     verts.clear();
                 }
+                currentObject = tokens[1];
             }
             else if (tokens[0].compare("v") == 0)
             {
@@ -218,7 +223,7 @@ struct Model
                     {
                         printf("did not find material\n");
                     }
-                    modelComponent.name = material;
+                    modelComponent.name = currentObject;
                     model.components.push_back(modelComponent);
                     verts.clear();
                 }
