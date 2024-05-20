@@ -468,6 +468,8 @@ void sphereTraceColliderAABBSetHalfExtents(ST_AABB* const aabb);
 
 void sphereTraceColliderAABBResizeAABBToContainAnotherAABB(ST_AABB* const aabbToResize, const ST_AABB* const aabbToContain);
 
+void sphereTraceColliderAABBResizeAABBToContainPoint(ST_AABB* const aabbToResize, const ST_Vector3 point);
+
 b32 sphereTraceColliderAABBIntersectAABB(const ST_AABB* const aabb1, const ST_AABB* const aabb2);
 
 b32 sphereTraceColliderAABBIntersectAABBIntersectionRegion(const ST_AABB* const aabb1, const ST_AABB* const aabb2, ST_AABB* const intersectionRegion);

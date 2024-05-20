@@ -310,6 +310,46 @@ void sphereTraceColliderAABBResizeAABBToContainAnotherAABB(ST_AABB* const aabbTo
 	}
 }
 
+void sphereTraceColliderAABBResizeAABBToContainPoint(ST_AABB* const aabbToResize, const ST_Vector3 point)
+{
+	b32 resizeDidHappen = 0;
+	if (point.x < aabbToResize->lowExtent.x)
+	{
+		aabbToResize->lowExtent.x = point.x;
+		resizeDidHappen = 1;
+	}
+	if (point.y < aabbToResize->lowExtent.y)
+	{
+		aabbToResize->lowExtent.y = point.y;
+		resizeDidHappen = 1;
+	}
+	if (point.z < aabbToResize->lowExtent.z)
+	{
+		aabbToResize->lowExtent.z = point.z;
+		resizeDidHappen = 1;
+	}
+	if (point.x > aabbToResize->highExtent.x)
+	{
+		aabbToResize->highExtent.x = point.x;
+		resizeDidHappen = 1;
+	}
+	if (point.y > aabbToResize->highExtent.y)
+	{
+		aabbToResize->highExtent.y = point.y;
+		resizeDidHappen = 1;
+	}
+	if (point.z > aabbToResize->highExtent.z)
+	{
+		aabbToResize->highExtent.z = point.z;
+		resizeDidHappen = 1;
+	}
+	if (resizeDidHappen)
+	{
+		sphereTraceColliderAABBSetHalfExtents(aabbToResize);
+		aabbToResize->center = sphereTraceVector3Average(aabbToResize->highExtent, aabbToResize->lowExtent);
+	}
+}
+
 b32 sphereTraceColliderAABBIntersectAABB(const ST_AABB* const aabb1, const ST_AABB* const aabb2)
 {
 	ST_Vector3 absdp = sphereTraceVector3SubtractAbsolute(aabb1->center, aabb2->center);

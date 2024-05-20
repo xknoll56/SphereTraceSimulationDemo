@@ -11,6 +11,34 @@ struct Vertex
 };
 
 
+struct StringManipulation
+{
+    static std::vector<std::string> splitString(const std::string& str, char delimiter) {
+        std::vector<std::string> result;
+        std::istringstream iss(str);
+        std::string token;
+
+        while (std::getline(iss, token, delimiter)) {
+            result.push_back(token);
+        }
+
+        return result;
+    }
+
+    static ST_Vector3 vector3FromStrings(std::string xs, std::string ys, std::string zs)
+    {
+        std::stringstream ss;
+        ST_Vector3 vec;
+        ss = std::stringstream(xs);
+        ss >> vec.x;
+        ss = std::stringstream(ys);
+        ss >> vec.y;
+        ss = std::stringstream(zs);
+        ss >> vec.z;
+        return vec;
+    }
+};
+
 struct VertexBuffer
 {
     ID3D12Resource* m_vertexBuffer;
@@ -527,19 +555,9 @@ struct VertexBuffer
         return vb;
     }
 
-    static std::vector<std::string> splitString(const std::string& str, char delimiter) {
-        std::vector<std::string> result;
-        std::istringstream iss(str);
-        std::string token;
 
-        while (std::getline(iss, token, delimiter)) {
-            result.push_back(token);
-        }
 
-        return result;
-    }
-
-    static VertexBuffer readFromObj(ID3D12Device* pDevice, const char* objPath)
+    static VertexBuffer readFromObj(ID3D12Device* pDevice, const char* objPath, ST_AABB* paabb)
     {
         VertexBuffer vb;
         vb.numVerts = 0;
@@ -557,8 +575,9 @@ struct VertexBuffer
 
 
         std::string line;
+        ST_AABB enclosingAABB = sphereTraceAABBConstruct1(gVector3Zero, gVector3Zero);
         while (std::getline(inputFile, line)) {
-            std::vector<std::string> tokens = splitString(line, ' ');
+            std::vector<std::string> tokens = StringManipulation::splitString(line, ' ');
             std::stringstream ss;
             if (tokens[0].compare("v") == 0)
             {
@@ -596,7 +615,7 @@ struct VertexBuffer
                 Vertex vertex;
                 UINT index;
                 // Vertex 1
-                std::vector<std::string> faces = splitString(tokens[1], '/');
+                std::vector<std::string> faces = StringManipulation::splitString(tokens[1], '/');
                 ss = std::stringstream(faces[0]);
                 ss >> index;
                 vertex.position = positions[index-1];
@@ -609,7 +628,7 @@ struct VertexBuffer
                 verts.push_back(vertex);
 
                 // Vertex 2
-                faces = splitString(tokens[2], '/');
+                faces = StringManipulation::splitString(tokens[2], '/');
                 ss = std::stringstream(faces[0]);
                 ss >> index;
                 vertex.position = positions[index-1];
@@ -622,7 +641,7 @@ struct VertexBuffer
                 verts.push_back(vertex);
 
                 // Vertex 3
-                faces = splitString(tokens[3], '/');
+                faces = StringManipulation::splitString(tokens[3], '/');
                 ss = std::stringstream(faces[0]);
                 ss >> index;
                 vertex.position = positions[index-1];
@@ -633,12 +652,129 @@ struct VertexBuffer
                 ss >> index;
                 vertex.normal = normals[index-1];
                 verts.push_back(vertex);
+
+                sphereTraceColliderAABBResizeAABBToContainPoint(&enclosingAABB, vertex.position);
             }
         }
 
         inputFile.close();
 
+        if (paabb != nullptr)
+            *paabb = enclosingAABB;
+
         vb.init(pDevice, (float*)verts.data(), verts.size()*sizeof(Vertex), sizeof(Vertex));
         return vb;
+    }
+
+    static std::vector<VertexBuffer> vertexBuffersFromObjFile(ID3D12Device* pDevice, const char* objPath)
+    {
+        std::vector<VertexBuffer> vbs;
+
+        std::ifstream inputFile(objPath);
+
+        if (!inputFile) {
+            return vbs;
+        }
+
+        std::vector<ST_Vector3> positions;
+        std::vector<ST_Vector3> normals;
+        std::vector<ST_Vector2> uvs;
+        std::vector<Vertex> verts;
+
+
+        std::string line;
+        ST_AABB enclosingAABB = sphereTraceAABBConstruct1(gVector3Zero, gVector3Zero);
+        while (std::getline(inputFile, line)) {
+            std::vector<std::string> tokens = StringManipulation::splitString(line, ' ');
+            std::stringstream ss;
+            if (tokens[0].compare("o") == 0)
+            {
+                if (verts.size() > 0)
+                {
+                    VertexBuffer vb;
+                    vb.init(pDevice, (float*)verts.data(), verts.size() * sizeof(Vertex), sizeof(Vertex));
+                    vbs.push_back(vb);
+                }
+                verts.clear();
+            }
+            else if (tokens[0].compare("v") == 0)
+            {
+                ST_Vector3 pos;
+                ss = std::stringstream(tokens[1]);
+                ss >> pos.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> pos.y;
+                ss = std::stringstream(tokens[3]);
+                ss >> pos.z;
+                positions.push_back(pos);
+            }
+            else if (tokens[0].compare("vn") == 0)
+            {
+                ST_Vector3 norm;
+                ss = std::stringstream(tokens[1]);
+                ss >> norm.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> norm.y;
+                ss = std::stringstream(tokens[3]);
+                ss >> norm.z;
+                normals.push_back(norm);
+            }
+            else if (tokens[0].compare("vt") == 0)
+            {
+                ST_Vector2 uv;
+                ss = std::stringstream(tokens[1]);
+                ss >> uv.x;
+                ss = std::stringstream(tokens[2]);
+                ss >> uv.y;
+                uvs.push_back(uv);
+            }
+            else if (tokens[0].compare("f") == 0)
+            {
+                Vertex vertex;
+                UINT index;
+                // Vertex 1
+                std::vector<std::string> faces = StringManipulation::splitString(tokens[1], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index - 1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index - 1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index - 1];
+                verts.push_back(vertex);
+
+                // Vertex 2
+                faces = StringManipulation::splitString(tokens[2], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index - 1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index - 1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index - 1];
+                verts.push_back(vertex);
+
+                // Vertex 3
+                faces = StringManipulation::splitString(tokens[3], '/');
+                ss = std::stringstream(faces[0]);
+                ss >> index;
+                vertex.position = positions[index - 1];
+                ss = std::stringstream(faces[1]);
+                ss >> index;
+                vertex.uv = uvs[index - 1];
+                ss = std::stringstream(faces[2]);
+                ss >> index;
+                vertex.normal = normals[index - 1];
+                verts.push_back(vertex);
+            }
+        }
+
+        inputFile.close();
+
+        return vbs;
     }
 };

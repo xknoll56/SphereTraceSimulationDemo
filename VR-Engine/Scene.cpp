@@ -60,37 +60,58 @@ void Scene::init()
     Renderer::instance.perPrimitiveInstanceBufferCounts[PRIMITIVE_SPHERE] = 0;
     pBoundCamera->cameraMovementSpeed = 4.0f;
     //pBoundCamera = &Renderer::instance.directionalLightCamera;
+    //std::map<std::string, Material> materialMap = Model::loadMaterials(Renderer::instance.m_device.Get(), Renderer::instance.m_commandList.Get(),
+    //    textureUploadHeap.Get(), Renderer::instance.dhp, "Models/Sponza/sponza.mtl");
+    //sponza = VertexBuffer::vertexBuffersFromObjFile(Renderer::instance.m_device.Get(), "Models/Sponza/sponza.obj");
+
+    printf("done loading");
 }
+
+//void Scene::draw()
+//{
+//    for (int i = 0; i < 10; i++)
+//    {
+//        for (int j = 0; j < 10; j++)
+//        {
+//            int index = i * 20 + j;
+//            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
+//            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+//            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
+//        }
+//    }
+//
+//    for (int i = 0; i < 10; i++)
+//    {
+//        for (int j = 0; j < 10; j++)
+//        {
+//            int index = i * 20 + j;
+//            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 4, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
+//            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.1, 4, j*1.1), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
+//            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.1, 4, j * 1.1), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
+//        }
+//    }
+//    //Renderer::instance.drawPrimitive(Renderer::instance.directionalLightCamera.cameraPos, gQusaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
+//    //Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
+//    Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
+//    Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, gVector4ColorRed, PRIMITIVE_PLANE);
+//    Renderer::instance.drawPrimitive(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(1, 1, 1) , Renderer::instance.tile, PRIMITIVE_BOX);
+//    //Renderer::instance.addWireFrameInstance(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(1, 1, 1) , gVector4ColorGreen, PRIMITIVE_BOX);
+//   Renderer::instance.drawVertexBuffer(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(1, 1, 1),gVector4ColorWhite, Renderer::instance.tile, 0.0f, Renderer::instance.mMonkeyVB);
+//   addAABB(Renderer::instance.monkeyAABB, gVector4ColorGreen);
+//
+//}
 
 void Scene::draw()
 {
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < 10; j++)
-        {
-            int index = i * 20 + j;
-            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
-            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
-            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-        }
-    }
+    //for (int i = 0; i < sponza.size(); i++)
+    //{
+    //    Renderer::instance.drawVertexBuffer(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(0.05,0.05,0.05), gVector4ColorWhite, Renderer::instance.checkers, 1.0f, sponza[i]);
+    //}
+    Renderer::instance.drawModel(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(0.05, 0.05, 0.05), gVector4ColorWhite, 0.0f, Renderer::instance.sponza);
+}
 
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < 10; j++)
-        {
-            int index = i * 20 + j;
-            //Renderer::instance.drawPrimitive(ST_VECTOR3(i, 4, j), gQuaternionIdentity, gVector3One, gVector4ColorCyan, Renderer::instance.texture, 0.5f, PRIMITIVE_SPHERE);
-            Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i*1.1, 4, j*1.1), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
-            Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.1, 4, j * 1.1), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-        }
-    }
-    //Renderer::instance.drawPrimitive(Renderer::instance.directionalLightCamera.cameraPos, gQusaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
-    //Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
-    Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
-    Renderer::instance.drawWireFrame(gVector3Zero, gQuaternionIdentity, gVector3One, gVector4ColorRed, PRIMITIVE_PLANE);
-    Renderer::instance.drawPrimitive(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(1, 1, 1) , Renderer::instance.tile, PRIMITIVE_BOX);
-    Renderer::instance.addWireFrameInstance(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(1, 1, 1) , gVector4ColorGreen, PRIMITIVE_BOX);
-   // Renderer::instance.drawVertexBuffer(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, ST_VECTOR3(10, 10, 10),gVector4ColorWhite, Renderer::instance.tile, 0.0f, Renderer::instance.mMonkeyVB);
 
+void Scene::addAABB(ST_AABB& aabb, ST_Vector4 color)
+{
+    Renderer::instance.addWireFrameInstance(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
 }

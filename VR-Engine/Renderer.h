@@ -29,12 +29,14 @@ using Microsoft::WRL::ComPtr;
 #include "Time.h"
 #include "Camera.h"
 #include "Texture.h"
+#include "Model.h"
 #include "Input.h"
 #include "Scene.h"
 
 
 class Renderer : public DXSample
 {
+    friend class Scene;
 public:
     Renderer(UINT width, UINT height, std::wstring name);
 
@@ -55,6 +57,8 @@ public:
     VertexBuffer mLineVB;
     VertexBuffer mCylinderVB;
     VertexBuffer mMonkeyVB;
+
+    Model sponza;
 
     struct alignas(256) VertexShaderConstantBuffer
     {
@@ -193,6 +197,7 @@ public:
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, PrimitiveType type);
     void drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, VertexBuffer& vertexBuffer);
+    void drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, float colorMix, Model& model);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
     void drawAddedPrimitiveInstances();

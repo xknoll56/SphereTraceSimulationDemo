@@ -190,9 +190,9 @@ void Renderer::LoadAssets()
 
         D3D12_STATIC_SAMPLER_DESC sampler = {};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
         sampler.MipLODBias = 0;
         sampler.MaxAnisotropy = 0;
         sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
@@ -386,7 +386,10 @@ void Renderer::LoadAssets()
     mLineVB = VertexBuffer::createLine(m_device.Get());
     mCylinderVB = VertexBuffer::createCylinder(m_device.Get());
 
-    mMonkeyVB = VertexBuffer::readFromObj(m_device.Get(), "monkey.obj");
+    mMonkeyVB = VertexBuffer::readFromObj(m_device.Get(), "Models/monkey.obj", nullptr);
+
+
+    
 
     //create constant buffer
     //for(int i = 0; i<400; i++)
@@ -425,6 +428,10 @@ void Renderer::LoadAssets()
         2, 2, texBytes);
     
     tile.init(m_device.Get(), m_commandList.Get(), textureUploadHeap.Get(), dhp, "Textures/tile360.png");
+
+    ComPtr<ID3D12Resource> textureUploadHeap1;
+    sponza = Model::modelFromObjFile(Renderer::instance.m_device.Get(), Renderer::instance.m_commandList.Get(), textureUploadHeap1.Get(), Renderer::instance.dhp,
+        "Models/Sponza/sponza.mtl", "Models/Sponza/sponza.obj");
 
     //create dsv
     // Create the depth stencil view.
@@ -485,23 +492,19 @@ void Renderer::LoadAssets()
         shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);
     }
 
-    //{
-    //    int width = 100;  // example width
-    //    int height = 100; // example height
 
-    //    // Create an example image: a gradient from black to white
-    //    std::vector<unsigned char> image(width * height * 3);
-    //    for (int y = 0; y < height; ++y) {
-    //        for (int x = 0; x < width; ++x) {
-    //            int offset = (y * width + x) * 3;
-    //            image[offset] = static_cast<unsigned char>(x * 255 / width);  // R
-    //            image[offset + 1] = static_cast<unsigned char>(y * 255 / height);  // G
-    //            image[offset + 2] = 0;  // B
-    //        }
-    //    }
-
-    //    Texture::writeBMP("output.bmp", image.data(), width, height);
-    //}
+    dirLightOffset = ST_VECTOR3(0, 25, 0);
+    directionalLightCamera = Camera::cameraConstruct(dirLightOffset, M_PI * 0.50f, -M_PI * 0.5f);
+    directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-30, 30, 30, -30, -80.0f, 80.0f, 1.0f);
+    directionalLightCamera.cameraSetViewMatrix();
+    directionalLightCamera.cameraSetRightAndFwdVectors();
+    mainCamera = Camera::cameraConstructDefault();
+    mainCamera.cameraSetViewMatrix();
+    mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
+    pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
+    pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
+    scene.pBoundCamera = &mainCamera;
+    scene.init();
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
@@ -527,24 +530,6 @@ void Renderer::LoadAssets()
     }
 
     sphereTraceAllocatorInitialize();
-
-    //ST_Matrix4 model = sphereTraceMatrixScale(ST_VECTOR3(50, 50, 50));
-    //ST_Matrix4 view = sphereTraceMatrixLookAt(ST_VECTOR3(30, 30, 30), gVector3Zero, gVector3Up);
-    //ST_Matrix4 projection = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    //m_constantBufferData.mvp = sphereTraceMatrixMult(projection, sphereTraceMatrixMult(view, model));
-    //mConstantBufferAccessors[400].updateConstantBufferData(&m_constantBufferData.mvp);
-    dirLightOffset = ST_VECTOR3(0, 25, 0);
-    directionalLightCamera = Camera::cameraConstruct(dirLightOffset, M_PI * 0.50f, -M_PI * 0.5f);
-    directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-15, 15, 15, -15, -80.0f, 80.0f, 1.0f);
-    directionalLightCamera.cameraSetViewMatrix();
-    directionalLightCamera.cameraSetRightAndFwdVectors();
-    mainCamera = Camera::cameraConstructDefault();
-    mainCamera.cameraSetViewMatrix();
-    mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
-    pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
-    scene.pBoundCamera = &mainCamera;
-    scene.init();
 
 }
 
@@ -744,7 +729,7 @@ void Renderer::PopulateCommandList()
 
         //Set the pixel shader vertex buffer data and bind it to Register 1
         ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
-        directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 15.0f);
+        directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
         Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
         directionalLightCamera.cameraSetViewMatrix();
         lightViewProjection = sphereTraceMatrixMult(directionalLightCamera.projectionMatrix, directionalLightCamera.viewMatrix);
@@ -990,7 +975,39 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
     }
-    mMonkeyVB.draw(m_commandList.Get());
+    vertexBuffer.draw(m_commandList.Get());
+}
+
+void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, float colorMix, Model& model)
+{
+    m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+        sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.colorMix = colorMix;
+    m_constantBufferData.color = color;
+    m_constantBufferData.lightViewProjection = lightViewProjection;
+    if (isShadowPass)
+    {
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+    }
+    else
+    {
+        m_commandList->SetPipelineState(mPipeline.pPipelineState);
+        m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+    }
+    for (Model::ModelComponent& component: model.components)
+    {
+        if (!isShadowPass && component.materia.hasTexture)
+        {
+            component.materia.ambientTexture.bind(m_commandList.Get(), 2);
+        }
+        component.vb.draw(m_commandList.Get());
+    }
 }
 
 

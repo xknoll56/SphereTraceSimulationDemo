@@ -191,6 +191,9 @@
     <ClInclude Include="stb_image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="DefaultShaders.hlsl">
@@ -211,6 +214,9 @@
   </ItemGroup>
   <ItemGroup>
     <Object Include="monkey.obj">
+      <Filter>Models</Filter>
+    </Object>
+    <Object Include="Models\Sponza\sponza.obj">
       <Filter>Models</Filter>
     </Object>
   </ItemGroup>

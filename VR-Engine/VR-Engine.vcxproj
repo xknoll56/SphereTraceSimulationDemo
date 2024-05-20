@@ -158,6 +158,7 @@
     <ClInclude Include="ConstantBuffer.h" />
     <ClInclude Include="DescriptorHandleProvider.h" />
     <ClInclude Include="Input.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="Pipeline.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="d3dx12.h" />
@@ -211,6 +212,10 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <Object Include="Models\Sponza\sponza.obj">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </Object>
     <Object Include="monkey.obj">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

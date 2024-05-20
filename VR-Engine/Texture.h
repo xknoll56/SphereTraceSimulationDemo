@@ -82,17 +82,21 @@ struct Texture
     void init(ID3D12Device* pDevice, ID3D12GraphicsCommandList* pCommandList, ID3D12Resource* textureUploadHeap, DescriptorHandleProvider& dhp,
         const char* filePath)
     {
-        int width, height, channels;
+        int width, height, channels = 0;
         unsigned char* data = stbi_load(filePath, &width, &height, &channels, 0);
-        if (channels == 3)
+        if (channels > 0)
         {
-            std::vector<uint8_t> rgbaData;
-            expandRGBToRGBA(data, width, height, rgbaData);
-            this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, rgbaData.data());
-        }
-        else
-        {
-            this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, data);
+            if (channels == 3)
+            {
+                std::vector<uint8_t> rgbaData;
+                expandRGBToRGBA(data, width, height, rgbaData);
+                this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, rgbaData.data());
+            }
+            else
+            {
+                this->init(pDevice, pCommandList, textureUploadHeap, dhp, width, height, data);
+            }
+            free(data);
         }
     }
 
