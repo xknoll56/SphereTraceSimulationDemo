@@ -493,7 +493,7 @@ void Renderer::LoadAssets()
     }
 
 
-    dirLightOffset = ST_VECTOR3(0, 25, 0);
+    dirLightOffset = ST_VECTOR3(0, 50, 0);
     directionalLightCamera = Camera::cameraConstruct(dirLightOffset, M_PI * 0.50f, -M_PI * 0.5f);
     directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-30, 30, 30, -30, -80.0f, 80.0f, 1.0f);
     directionalLightCamera.cameraSetViewMatrix();

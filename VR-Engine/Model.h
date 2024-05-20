@@ -117,16 +117,14 @@ struct Model
         std::vector<ST_Vector2> uvs;
         std::vector<Vertex> verts;
 
-
         std::string line;
         std::string material;
-        ST_AABB enclosingAABB = sphereTraceAABBConstruct1(gVector3Zero, gVector3Zero);
         while (std::getline(inputFile, line)) {
             std::vector<std::string> tokens = StringManipulation::splitString(line, ' ');
             std::stringstream ss;
             if (tokens[0].compare("o") == 0)
             {
-                if (verts.size() > 0)
+                if (!verts.empty())
                 {
                     ModelComponent modelComponent;
                     modelComponent.vb.init(pDevice, (float*)verts.data(), verts.size() * sizeof(Vertex), sizeof(Vertex));
@@ -140,8 +138,8 @@ struct Model
                     }
                     modelComponent.name = tokens[1];
                     model.components.push_back(modelComponent);
+                    verts.clear();
                 }
-                verts.clear();
             }
             else if (tokens[0].compare("v") == 0)
             {
@@ -176,55 +174,60 @@ struct Model
             }
             else if (tokens[0].compare("f") == 0)
             {
-                Vertex vertex;
-                UINT index;
-                // Vertex 1
-                std::vector<std::string> faces = StringManipulation::splitString(tokens[1], '/');
-                ss = std::stringstream(faces[0]);
-                ss >> index;
-                vertex.position = positions[index - 1];
-                ss = std::stringstream(faces[1]);
-                ss >> index;
-                vertex.uv = uvs[index - 1];
-                ss = std::stringstream(faces[2]);
-                ss >> index;
-                vertex.normal = normals[index - 1];
-                verts.push_back(vertex);
+                for (int i = 1; i <= 3; ++i)
+                {
+                    Vertex vertex;
+                    UINT index;
+                    std::vector<std::string> faces = StringManipulation::splitString(tokens[i], '/');
 
-                // Vertex 2
-                faces = StringManipulation::splitString(tokens[2], '/');
-                ss = std::stringstream(faces[0]);
-                ss >> index;
-                vertex.position = positions[index - 1];
-                ss = std::stringstream(faces[1]);
-                ss >> index;
-                vertex.uv = uvs[index - 1];
-                ss = std::stringstream(faces[2]);
-                ss >> index;
-                vertex.normal = normals[index - 1];
+                    // Position
+                    ss = std::stringstream(faces[0]);
+                    ss >> index;
+                    vertex.position = positions[index - 1];
 
-                verts.push_back(vertex);
+                    // UV (check if UV index is available)
+                    if (faces.size() > 1 && !faces[1].empty())
+                    {
+                        ss = std::stringstream(faces[1]);
+                        ss >> index;
+                        vertex.uv = uvs[index - 1];
+                    }
 
-                // Vertex 3
-                faces = StringManipulation::splitString(tokens[3], '/');
-                ss = std::stringstream(faces[0]);
-                ss >> index;
-                vertex.position = positions[index - 1];
-                ss = std::stringstream(faces[1]);
-                ss >> index;
-                vertex.uv = uvs[index - 1];
-                ss = std::stringstream(faces[2]);
-                ss >> index;
-                vertex.normal = normals[index - 1];
-                verts.push_back(vertex);
+                    // Normal (check if normal index is available)
+                    if (faces.size() > 2 && !faces[2].empty())
+                    {
+                        ss = std::stringstream(faces[2]);
+                        ss >> index;
+                        vertex.normal = normals[index - 1];
+                    }
+
+                    verts.push_back(vertex);
+                }
             }
             else if (tokens[0] == "usemtl")
             {
+                if (!verts.empty())
+                {
+                    ModelComponent modelComponent;
+                    modelComponent.vb.init(pDevice, (float*)verts.data(), verts.size() * sizeof(Vertex), sizeof(Vertex));
+                    if (materialMap.find(material) != materialMap.end())
+                    {
+                        modelComponent.materia = materialMap[material];
+                    }
+                    else
+                    {
+                        printf("did not find material\n");
+                    }
+                    modelComponent.name = material;
+                    model.components.push_back(modelComponent);
+                    verts.clear();
+                }
                 material = tokens[1];
             }
         }
 
         // Add the final model component with whatever is left
+        if (!verts.empty())
         {
             ModelComponent modelComponent;
             modelComponent.vb.init(pDevice, (float*)verts.data(), verts.size() * sizeof(Vertex), sizeof(Vertex));
