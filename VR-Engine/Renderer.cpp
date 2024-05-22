@@ -430,8 +430,8 @@ void Renderer::LoadAssets()
     tile.init(m_device.Get(), m_commandList.Get(), textureUploadHeap.Get(), dhp, "Textures/tile360.png");
 
     ComPtr<ID3D12Resource> textureUploadHeap1;
-    sponza = Model::modelFromObjFile(Renderer::instance.m_device.Get(), Renderer::instance.m_commandList.Get(), textureUploadHeap1.Get(), Renderer::instance.dhp,
-        "Models/Sponza/sponza.mtl", "Models/Sponza/sponza.obj");
+    //sponza = Model::modelFromObjFile(Renderer::instance.m_device.Get(), Renderer::instance.m_commandList.Get(), textureUploadHeap1.Get(), Renderer::instance.dhp,
+    //    "Models/Sponza/sponza.mtl", "Models/Sponza/sponza.obj");
 
     //create dsv
     // Create the depth stencil view.
@@ -503,8 +503,9 @@ void Renderer::LoadAssets()
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
-    scene.pBoundCamera = &mainCamera;
-    scene.init();
+    pScene = new SceneTest();
+    pScene->pBoundCamera = &mainCamera;
+    pScene->init();
 
     // Close the command list and execute it to begin the initial GPU setup.
     ThrowIfFailed(m_commandList->Close());
@@ -539,7 +540,7 @@ void Renderer::OnUpdate()
 {
     timer.update();
 
-    scene.updateCamera(timer.dt);
+    pScene->updateCamera(timer.dt);
 
 }
 
@@ -730,16 +731,16 @@ void Renderer::PopulateCommandList()
         //Set the pixel shader vertex buffer data and bind it to Register 1
         ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
         directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
-        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(scene.pBoundCamera->cameraPos, 1.0f);
+        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
         directionalLightCamera.cameraSetViewMatrix();
         lightViewProjection = sphereTraceMatrixMult(directionalLightCamera.projectionMatrix, directionalLightCamera.viewMatrix);
 
         // 6. Draw the scene (bind vertex/index buffers, set the root parameters, andsa issue draw calls)
         isShadowPass = true;
-        scene.pBoundCamera = &directionalLightCamera;
+        pScene->pBoundCamera = &directionalLightCamera;
         m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-        scene.draw();
+        pScene->draw();
         m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
         Renderer::instance.drawAddedPrimitiveInstances();
@@ -783,8 +784,8 @@ void Renderer::PopulateCommandList()
 
         //draw scene
         isShadowPass = false;
-        scene.pBoundCamera = &mainCamera;
-        scene.draw();
+        pScene->pBoundCamera = &mainCamera;
+        pScene->draw();
         drawAddedPrimitiveInstances();
         drawAddedWireFrameInstances();
 
@@ -840,7 +841,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = 0.0f;
     m_constantBufferData.lightViewProjection = lightViewProjection;
     if (isShadowPass)
@@ -879,7 +880,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.color = color;
     m_constantBufferData.colorMix = 1.0f;
     m_constantBufferData.lightViewProjection = lightViewProjection;
@@ -918,7 +919,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
     m_constantBufferData.lightViewProjection = lightViewProjection;
@@ -957,7 +958,7 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
     m_constantBufferData.lightViewProjection = lightViewProjection;
@@ -983,7 +984,7 @@ void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3
     m_constantBufferData.model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, m_constantBufferData.model));
+    m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
     m_constantBufferData.lightViewProjection = lightViewProjection;
@@ -1019,7 +1020,7 @@ void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 	ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
 		sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
 	m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	m_constantBufferData.mvp = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, model));
+	m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, model));
 	m_constantBufferData.color = color;
 	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
 	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
@@ -1062,8 +1063,8 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateY(theta));
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixRotateZ(psi));
     modelMatrix = sphereTraceMatrixMult(modelMatrix, sphereTraceMatrixScale({ dist, 1, 1 }));
-    ST_Matrix4 modelView = sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix, modelMatrix);
-    ST_Matrix4 modelViewProjection = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, modelView);
+    ST_Matrix4 modelView = sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, modelMatrix);
+    ST_Matrix4 modelViewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, modelView);
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
     m_constantBufferData.mvp = modelViewProjection;
@@ -1090,7 +1091,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
             model));
         perPrimitiveInstanceBufferCountsShadows[type]++;
         perPrimitiveInstanceBufferCountsShadows[type] %= 400;
@@ -1099,7 +1100,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
             perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
         perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
 
@@ -1115,7 +1116,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         ST_Matrix4 model = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+        perPrimitiveInstanceBufferShadows[type].mvp[perPrimitiveInstanceBufferCountsShadows[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
             model));
         perPrimitiveInstanceBufferCountsShadows[type]++;
         perPrimitiveInstanceBufferCountsShadows[type] %= 400;
@@ -1124,7 +1125,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
             perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
         perPrimitiveInstanceBufferCounts[type]++;
         perPrimitiveInstanceBufferCounts[type] %= 400;
@@ -1137,7 +1138,7 @@ void Renderer::addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation,
         return;
     perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    perWireFramePrimitiveInstanceBuffer[type].mvp[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(scene.pBoundCamera->projectionMatrix, sphereTraceMatrixMult(scene.pBoundCamera->viewMatrix,
+    perWireFramePrimitiveInstanceBuffer[type].mvp[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
         perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]]));
     perWireFramePrimitiveInstanceBuffer[type].colors[perWireFramePrimitiveInstanceBufferCounts[type]] = color;
 

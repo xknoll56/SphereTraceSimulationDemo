@@ -58,7 +58,7 @@ public:
     VertexBuffer mCylinderVB;
     VertexBuffer mMonkeyVB;
 
-    Model sponza;
+   // Model sponza;
 
     struct alignas(256) VertexShaderConstantBuffer
     {
@@ -191,7 +191,7 @@ public:
 
     static Renderer instance;
 
-    Scene scene;
+    Scene* pScene;
     // Draw methods
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type);
     void drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);

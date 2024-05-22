@@ -20,10 +20,16 @@ struct Scene
 public:
     Camera* pBoundCamera;
     void updateCamera(float dt);
-    void draw();
-    void init();
+    virtual void draw() = 0;
+    virtual void init() = 0;
 protected:
     void addAABB(ST_AABB& aabb, ST_Vector4 color);
 private:
 
+};
+
+struct SceneTest : Scene
+{
+    void draw() override;
+    void init() override;
 };
