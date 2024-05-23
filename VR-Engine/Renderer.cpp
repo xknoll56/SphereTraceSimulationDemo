@@ -530,7 +530,7 @@ void Renderer::LoadAssets()
         WaitForGpu();
     }
 
-    sphereTraceAllocatorInitialize();
+    
 
 }
 
@@ -539,7 +539,7 @@ void Renderer::LoadAssets()
 void Renderer::OnUpdate()
 {
     timer.update();
-
+    pScene->update(timer.dt);
     pScene->updateCamera(timer.dt);
 
 }

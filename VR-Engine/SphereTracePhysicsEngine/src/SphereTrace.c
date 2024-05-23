@@ -1762,9 +1762,9 @@ void sphereTraceBoxSimulationGlobalSolveDiscrete(ST_SimulationSpace* const pSimu
 
 void sphereTraceSimulationOctTreeGridSolveDiscrete(ST_SimulationSpace* const pSimulationSpace, float dt)
 {
-	//dt = sphereTraceMin(dt, pSimulationSpace->minDeltaTime);
-	//if (dt < 0.0f)
-	//	dt = pSimulationSpace->minDeltaTime;
+	dt = sphereTraceMin(dt, pSimulationSpace->minDeltaTime);
+	if (dt < 0.0f)
+		dt = pSimulationSpace->minDeltaTime;
 
 	//step all quantities
 	sphereTraceSimulationStepQuantities(pSimulationSpace, dt);

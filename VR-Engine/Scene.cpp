@@ -45,46 +45,59 @@ float timeGetRandomFloatBetween0And1()
 	return (float)rand() / RAND_MAX;
 }
 
-void Scene::addAABB(ST_AABB& aabb, ST_Vector4 color)
+void Scene::drawAABB(ST_AABB& aabb, ST_Vector4 color)
 {
 	Renderer::instance.addWireFrameInstance(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
 }
 
-void SceneTest::init()
+void Scene::drawSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color)
 {
-	for (int i = 0; i < 20; i++)
-	{
-		for (int j = 0; j < 20; j++)
-		{
-			int index = i * 20 + j;
-			Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i, 2, j), gQuaternionIdentity, gVector3One,
-				sphereTraceVector4Construct(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f), PRIMITIVE_SPHERE);
-		}
-	}
-	Renderer::instance.perPrimitiveInstanceBufferCounts[PRIMITIVE_SPHERE] = 0;
-	pBoundCamera->cameraMovementSpeed = 4.0f;
+	Renderer::instance.addPrimitiveInstance(sphereCollider.rigidBody.position, sphereCollider.rigidBody.rotation, sphereTraceVector3UniformSize(sphereCollider.radius * 2.0f), color, PRIMITIVE_SPHERE);
 }
 
+void Scene::drawPlaneCollider(ST_PlaneCollider& planeCollider, ST_Vector4 color)
+{
+	Renderer::instance.addPrimitiveInstance(planeCollider.position, planeCollider.rotation, ST_VECTOR3(planeCollider.xHalfExtent*2.0f, 1.0f, planeCollider.zHalfExtent*2.0f), color, PRIMITIVE_PLANE);
+}
+
+void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 color, ST_Vector4 boundColor)
+{
+	for (int i = 0; i < 8; i++)
+	{
+		Renderer::instance.addPrimitiveInstance(sphereTraceVector3Add(cluster.rigidBody.position, cluster.elementPositions[i]), cluster.rigidBody.rotation, sphereTraceVector3UniformSize(cluster.halfWidth), color, PRIMITIVE_SPHERE);
+	}
+	Renderer::instance.addWireFrameInstance(cluster.rigidBody.position, cluster.rigidBody.rotation, sphereTraceVector3UniformSize(cluster.halfWidth * 2.0f), boundColor, PRIMITIVE_BOX);
+}
+
+
+void SceneTest::init()
+{
+	sphereCollider = sphereTraceColliderSphereConstruct(0.5f);
+	sphereTraceColliderSphereSetPosition(&sphereCollider, ST_VECTOR3(0, 10, 0));
+	planeCollider = sphereTraceColliderPlaneConstruct(gVector3Up, 0.0f, 50.0f, 50.0f, gVector3Zero);
+	simSpace = sphereTraceSimulationConstruct();
+	sphereTraceSimulationInsertSphereCollider(&simSpace, &sphereCollider);
+	sphereTraceSimulationInsertPlaneCollider(&simSpace, &planeCollider);
+	cluster = sphereTraceColliderSphereCubeClusterConstruct(3.0f);
+	cluster.rigidBody.position = ST_VECTOR3(0, 10, 0);
+
+	pBoundCamera->cameraMovementSpeed = 4.0f;
+
+
+}
+
+void SceneTest::update(float dt)
+{
+	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, dt);
+
+}
 
 void SceneTest::draw()
 {
 
-	for (int i = 0; i < 10; i++)
-	{
-		for (int j = 0; j < 10; j++)
-		{
-			Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i * 1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
-			Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.05, 2, j * 1.05), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-		}
-	}
-
-	for (int i = 0; i < 10; i++)
-	{
-		for (int j = 0; j < 10; j++)
-		{
-			Renderer::instance.addPrimitiveInstance(ST_VECTOR3(i * 1.1, 4, j * 1.1), gQuaternionIdentity, gVector3One, PRIMITIVE_SPHERE);
-			Renderer::instance.addWireFrameInstance(ST_VECTOR3(i * 1.1, 4, j * 1.1), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-		}
-	}
-	Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(100, 1, 100), gVector4ColorWhite, PRIMITIVE_PLANE);
+	drawSphereCollider(sphereCollider, gVector4ColorCyan);
+	drawPlaneCollider(planeCollider, gVector4ColorWhite);
+	drawSphereCubeCluster(cluster, gVector4ColorBlue, gVector4ColorGreen);
 }
+
+

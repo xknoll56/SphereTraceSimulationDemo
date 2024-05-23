@@ -1050,3 +1050,22 @@ b32 sphereTraceColliderSphereSphereTraceOut(ST_Vector3 spherePos, float sphereRa
 	return sphereTraceColliderImposedSphereSphereTrace(castPoint, sphereTraceDirectionNegative(clipoutDir), sphereRadius, encompassingPos, encompassingRadius, pContactInfo);
 
 }
+
+
+ST_SphereCubeCluster sphereTraceColliderSphereCubeClusterConstruct(float halfWidth)
+{
+	ST_SphereCubeCluster cluster;
+	cluster.collider = sphereTraceColliderConstruct(COLLIDER_CUBE_CLUSTER, sphereTraceVector3Length(sphereTraceVector3Construct(halfWidth, halfWidth, halfWidth)));
+	cluster.rigidBody = sphereTraceRigidBodyConstruct(1.0f, 1.0f);
+	float halfHalf = 0.5f * halfWidth;
+	cluster.elementPositions[ST_LEFT_DOWN_BACK] = sphereTraceVector3Construct(-halfHalf, -halfHalf, -halfHalf);
+	cluster.elementPositions[ST_RIGHT_DOWN_BACK] = sphereTraceVector3Construct(halfHalf, -halfHalf, -halfHalf);
+	cluster.elementPositions[ST_LEFT_DOWN_FORWARD] = sphereTraceVector3Construct(-halfHalf, -halfHalf, halfHalf);
+	cluster.elementPositions[ST_RIGHT_DOWN_FORWARD] = sphereTraceVector3Construct(halfHalf, -halfHalf, halfHalf);
+	cluster.elementPositions[ST_LEFT_UP_BACK] = sphereTraceVector3Construct(-halfHalf, halfHalf, -halfHalf);
+	cluster.elementPositions[ST_RIGHT_UP_BACK] = sphereTraceVector3Construct(halfHalf, halfHalf, -halfHalf);
+	cluster.elementPositions[ST_LEFT_UP_FORWARD] = sphereTraceVector3Construct(-halfHalf, halfHalf, halfHalf);
+	cluster.elementPositions[ST_RIGHT_UP_FORWARD] = sphereTraceVector3Construct(halfHalf, halfHalf, halfHalf);
+	cluster.halfWidth = halfWidth;
+	return cluster;
+}

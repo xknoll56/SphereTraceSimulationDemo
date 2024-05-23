@@ -138,6 +138,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
         hInstance,
         nullptr);
 
+    //Initialize spheretrace allocator
+    sphereTraceAllocatorInitialize();
+
     // Initialize the sample. OnInit is defined in each child-implementation of DXSample.
     Renderer::instance.OnInit();
     inputInitialize();

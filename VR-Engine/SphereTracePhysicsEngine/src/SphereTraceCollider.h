@@ -20,7 +20,8 @@ typedef enum ST_ColliderType
 	COLLIDER_BOWL = 4,
 	COLLIDER_PIPE = 5,
 	COLLIDER_AABB = 6,
-	COLLIDER_BOX = 7
+	COLLIDER_BOX = 7,
+	COLLIDER_CUBE_CLUSTER = 8
 } ST_ColliderType;
 
 const char* ST_ColliderStrings[];
@@ -269,6 +270,15 @@ typedef struct ST_SphereCollider
 	b32 ignoreCollisions;
 	ST_IndexList prevFrameContacts;
 } ST_SphereCollider;
+
+
+typedef struct ST_SphereCubeCluster
+{
+	ST_Collider collider;
+	ST_Vector3 elementPositions[8];
+	ST_RigidBody rigidBody;
+	float halfWidth;
+} ST_SphereCubeCluster;
 
 typedef struct ST_BoxFace
 {
