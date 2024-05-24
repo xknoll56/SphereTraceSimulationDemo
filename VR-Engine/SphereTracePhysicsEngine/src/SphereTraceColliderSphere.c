@@ -1069,3 +1069,16 @@ ST_SphereCubeCluster sphereTraceColliderSphereCubeClusterConstruct(float halfWid
 	cluster.halfWidth = halfWidth;
 	return cluster;
 }
+
+ST_SpherePair sphereTraceColliderSpherePairConstruct(float radii, float halfDistance)
+{
+	ST_SpherePair cluster;
+	cluster.collider = sphereTraceColliderConstruct(COLLIDER_SPHERE_PAIR, radii+halfDistance);
+	cluster.halfDistance = halfDistance;
+	cluster.frame = sphereTraceFrameConstruct();
+	cluster.sphereRadii = radii;
+	cluster.sphereBodyLeft = sphereTraceRigidBodyConstruct(1, 1);
+	cluster.sphereBodyRight = sphereTraceRigidBodyConstruct(1, 1);
+	cluster.restingContact = ST_FALSE;
+	return cluster;
+}

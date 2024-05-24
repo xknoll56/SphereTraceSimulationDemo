@@ -100,6 +100,25 @@ void sphereTraceColliderFree(ST_Collider* const pCollider)
 //	pCollider->octTreeEntry.objectIsCollider = ST_TRUE;
 //}
 
+ST_Frame sphereTraceFrameConstruct()
+{
+	ST_Frame frame;
+	frame.right = gDirectionRight;
+	frame.up = gDirectionUp;
+	frame.forward = gDirectionForward;
+	return frame;
+}
+
+void sphereTraceSetFrameWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix)
+{
+	pFrame->right = sphereTraceDirectionGetLocalXAxisFromRotationMatrix(rotationMatrix);
+	pFrame->up = sphereTraceDirectionGetLocalYAxisFromRotationMatrix(rotationMatrix);
+	pFrame->forward = sphereTraceDirectionGetLocalZAxisFromRotationMatrix(rotationMatrix);
+	sphereTraceDirectionNormalizeIfNotNormalizedByRef(&pFrame->right);
+	sphereTraceDirectionNormalizeIfNotNormalizedByRef(&pFrame->up);
+	sphereTraceDirectionNormalizeIfNotNormalizedByRef(&pFrame->up);
+}
+
 ST_Edge sphereTraceEdgeConstruct(ST_Vector3 p1, ST_Vector3 p2)
 {
 	ST_Edge edge;

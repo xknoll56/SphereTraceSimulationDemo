@@ -505,6 +505,7 @@ void Renderer::LoadAssets()
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
     pScene = new SceneTest();
     pScene->pBoundCamera = &mainCamera;
+    pScene->baseInit();
     pScene->init();
 
     // Close the command list and execute it to begin the initial GPU setup.

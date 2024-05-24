@@ -49,3 +49,7 @@ b32 sphereTraceColliderSphereSphereCollisionTest(ST_SphereCollider* const pSpher
 b32 sphereTraceColliderSphereSphereTraceOut(ST_Vector3 spherePos, float sphereRadius, ST_Direction clipoutDir, ST_Vector3 encompassingPos, float encompassingRadius, ST_SphereContact* const pContactInfo);
 //
 ST_SphereCubeCluster sphereTraceColliderSphereCubeClusterConstruct(float width);
+
+ST_SpherePair sphereTraceColliderSpherePairConstruct(float radii, float halfDistance);
+
+void sphereTraceColliderSpherePairSetLocalAxis(ST_SpherePair* const pSpherePair);

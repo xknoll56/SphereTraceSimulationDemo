@@ -10,6 +10,12 @@
 #define ST_SPHERE_RESTING_CONTACTS_COUNT 4
 #define ST_CONTACT_MAX 6
 
+typedef struct ST_Frame
+{
+	ST_Direction right;
+	ST_Direction up;
+	ST_Direction forward;
+}ST_Frame;
 
 typedef enum ST_ColliderType
 {
@@ -21,7 +27,8 @@ typedef enum ST_ColliderType
 	COLLIDER_PIPE = 5,
 	COLLIDER_AABB = 6,
 	COLLIDER_BOX = 7,
-	COLLIDER_CUBE_CLUSTER = 8
+	COLLIDER_CUBE_CLUSTER = 8,
+	COLLIDER_SPHERE_PAIR = 9
 } ST_ColliderType;
 
 const char* ST_ColliderStrings[];
@@ -280,6 +287,18 @@ typedef struct ST_SphereCubeCluster
 	float halfWidth;
 } ST_SphereCubeCluster;
 
+typedef struct ST_SpherePair
+{
+	ST_Collider collider;
+	ST_RigidBody sphereBodyLeft;
+	ST_RigidBody sphereBodyRight;
+
+	float sphereRadii;
+	float halfDistance;
+	b32 restingContact;
+	ST_Frame frame;
+} ST_SpherePair;
+
 typedef struct ST_BoxFace
 {
 	enum ST_DirectionType dir;
@@ -439,6 +458,9 @@ typedef struct ST_SphereTraceData
 //	ST_SphereCollider* pA;
 //	ST_SphereCollider* pB;
 //} ST_SphereSphereContactInfo;
+ST_Frame sphereTraceFrameConstruct();
+
+void sphereTraceSetFrameWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix);
 
 ST_Edge sphereTraceEdgeConstruct(ST_Vector3 p1, ST_Vector3 p2);
 

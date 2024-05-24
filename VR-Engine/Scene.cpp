@@ -40,6 +40,18 @@ void Scene::updateCamera(float dt)
 	pBoundCamera->cameraSetRightAndFwdVectors();
 }
 
+void Scene::baseInit()
+{
+	worldAABB = sphereTraceAABBConstruct1(sphereTraceVector3Construct(-500.0f, -100.0f, -500.0f),
+		sphereTraceVector3Construct(500.0f, 100.0f, 500.0f));
+     octTreeGrid = sphereTraceOctTreeGridConstruct(worldAABB, sphereTraceVector3Construct(100.0f, 100.0f, 100.0f));
+}
+
+void addColliderToRenderSpace(const ST_Collider& collider)
+{
+	
+}
+
 float timeGetRandomFloatBetween0And1()
 {
 	return (float)rand() / RAND_MAX;
@@ -47,7 +59,7 @@ float timeGetRandomFloatBetween0And1()
 
 void Scene::drawAABB(ST_AABB& aabb, ST_Vector4 color)
 {
-	Renderer::instance.addWireFrameInstance(ST_VECTOR3(-10, 15, 0), gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
+	Renderer::instance.addWireFrameInstance(aabb.center, gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
 }
 
 void Scene::drawSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color)
@@ -98,6 +110,21 @@ void SceneTest::draw()
 	drawSphereCollider(sphereCollider, gVector4ColorCyan);
 	drawPlaneCollider(planeCollider, gVector4ColorWhite);
 	drawSphereCubeCluster(cluster, gVector4ColorBlue, gVector4ColorGreen);
+
+
+	ST_AABB aabb;
+	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
+	{
+		for (ST_Index y = 0; y < octTreeGrid.yBuckets; y++)
+		{
+			for (ST_Index x = 0; x < octTreeGrid.xBuckets; x++)
+			{
+				ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
+				aabb = octTreeGrid.treeBuckets[i].root->aabb;
+				drawAABB(aabb, gVector4ColorRed);
+			}
+		}
+	}
 }
 
 
