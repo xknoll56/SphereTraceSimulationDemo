@@ -25,11 +25,12 @@ public:
     virtual void update(float dt) = 0;
     void baseInit();
 protected:
-    void addColliderToRenderSpace(const ST_Collider& collider);
+    void addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree);
     void drawAABB(ST_AABB& aabb, ST_Vector4 color);
     void drawSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color);
     void drawPlaneCollider(ST_PlaneCollider& planeCollider, ST_Vector4 color);
     void drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 color, ST_Vector4 boundColor);
+    void drawOctTreeRecursive(ST_OctTreeNode& node, ST_Vector4 color);
     ST_AABB worldAABB;
     ST_OctTreeGrid octTreeGrid;
     std::vector<Model> model;
@@ -39,12 +40,10 @@ private:
 
 struct SceneTest : Scene
 {
-    ST_SphereCollider sphereCollider;
-    ST_PlaneCollider planeCollider;
-    ST_SimulationSpace simSpace;
-    ST_SphereCubeCluster cluster;
 
     void update(float dt) override;
     void draw() override;
     void init() override;
+
+    std::vector<ST_Collider*> renderableColliders;
 };

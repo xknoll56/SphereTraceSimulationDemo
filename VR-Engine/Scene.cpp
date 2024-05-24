@@ -47,9 +47,9 @@ void Scene::baseInit()
      octTreeGrid = sphereTraceOctTreeGridConstruct(worldAABB, sphereTraceVector3Construct(100.0f, 100.0f, 100.0f));
 }
 
-void addColliderToRenderSpace(const ST_Collider& collider)
+void Scene::addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree)
 {
-	
+	sphereTraceOctTreeGridInsertCollider(&octTreeGrid, &collider, restructureTree);
 }
 
 float timeGetRandomFloatBetween0And1()
@@ -60,6 +60,18 @@ float timeGetRandomFloatBetween0And1()
 void Scene::drawAABB(ST_AABB& aabb, ST_Vector4 color)
 {
 	Renderer::instance.addWireFrameInstance(aabb.center, gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
+}
+
+void Scene::drawOctTreeRecursive(ST_OctTreeNode& node, ST_Vector4 color)
+{
+	drawAABB(node.aabb, color);
+	if (node.hasChildren)
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			drawOctTreeRecursive(*node.children[i], color);
+		}
+	}
 }
 
 void Scene::drawSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color)
@@ -84,34 +96,29 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 
 void SceneTest::init()
 {
-	sphereCollider = sphereTraceColliderSphereConstruct(0.5f);
-	sphereTraceColliderSphereSetPosition(&sphereCollider, ST_VECTOR3(0, 10, 0));
-	planeCollider = sphereTraceColliderPlaneConstruct(gVector3Up, 0.0f, 50.0f, 50.0f, gVector3Zero);
-	simSpace = sphereTraceSimulationConstruct();
-	sphereTraceSimulationInsertSphereCollider(&simSpace, &sphereCollider);
-	sphereTraceSimulationInsertPlaneCollider(&simSpace, &planeCollider);
-	cluster = sphereTraceColliderSphereCubeClusterConstruct(3.0f);
-	cluster.rigidBody.position = ST_VECTOR3(0, 10, 0);
-
 	pBoundCamera->cameraMovementSpeed = 4.0f;
 
-
+	for (int i = 0; i < 30; i++)
+	{
+		ST_Collider* pCollider = new ST_Collider();
+		*pCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(ST_VECTOR3(3 * i, 0, 0), ST_VECTOR3(1, 1, 1)));
+		addColliderToOctTreeGrid(*pCollider, true);
+		renderableColliders.push_back(pCollider);
+	}
 }
 
 void SceneTest::update(float dt)
 {
-	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, dt);
+	
 
 }
 
 void SceneTest::draw()
 {
-
-	drawSphereCollider(sphereCollider, gVector4ColorCyan);
-	drawPlaneCollider(planeCollider, gVector4ColorWhite);
-	drawSphereCubeCluster(cluster, gVector4ColorBlue, gVector4ColorGreen);
-
-
+	for (int i = 0; i < renderableColliders.size(); i++)
+	{
+		Renderer::instance.drawPrimitive(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
+	}
 	ST_AABB aabb;
 	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
 	{
@@ -121,7 +128,10 @@ void SceneTest::draw()
 			{
 				ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
 				aabb = octTreeGrid.treeBuckets[i].root->aabb;
-				drawAABB(aabb, gVector4ColorRed);
+				if (octTreeGrid.treeBuckets[i].root->hasChildren)
+				{
+					drawOctTreeRecursive(*octTreeGrid.treeBuckets[i].root, gVector4ColorRed);
+				}
 			}
 		}
 	}
