@@ -2,10 +2,10 @@
 #define MAX_INSTANCES 400
 cbuffer VertexShaderConstants : register(b0)
 {
-    float4x4 mvp[MAX_INSTANCES];
+    float4x4 viewProjection;
+    float4x4 lightViewProj;
     float4x4 model[MAX_INSTANCES];
     float4 colors[MAX_INSTANCES];
-    float4x4 lightViewProj;
     
 };
 
@@ -49,8 +49,8 @@ float4 CalculateLighting(float3 viewDir, float3 normal, float3 lightDir, float3 
 PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD, uint instanceID : SV_InstanceID)
 {
     PSInput result;
-
-    result.position = mul(float4(position, 1.0f), mvp[instanceID]);
+    float4x4 mvp = mul(model[instanceID], viewProjection);
+    result.position = mul(float4(position, 1.0f), mvp);
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
     result.color = colors[instanceID];
     float4 modelPos = mul(float4(position, 1.0f), model[instanceID]);

@@ -399,11 +399,11 @@ void Renderer::LoadAssets()
     pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer));
     for (int i = 0; i < 4; i++)
     {
-        perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+        perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(WireFrameInstancedConstantBuffer));
 
         ConstantBufferAccessor accessor;
         perWireFramePrimitiveInstanceCBAAccessors[i].push_back(accessor);
-        perWireFramePrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+        perWireFramePrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(WireFrameInstancedConstantBuffer));
         WireFrameInstancedConstantBuffer buf;
         perWireFramePrimitiveInstanceBuffers[i].push_back(buf);
 
@@ -1107,8 +1107,6 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
-            perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
         perPrimitiveInstanceBuffer[type].colors[perPrimitiveInstanceBufferCounts[type]] = color;
 
         perPrimitiveInstanceBufferCounts[type]++;
@@ -1132,8 +1130,6 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
     {
         perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
             sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-        perPrimitiveInstanceBuffer[type].mvp[perPrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
-            perPrimitiveInstanceBuffer[type].model[perPrimitiveInstanceBufferCounts[type]]));
         perPrimitiveInstanceBufferCounts[type]++;
         perPrimitiveInstanceBufferCounts[type] %= 400;
     }
@@ -1157,7 +1153,7 @@ void Renderer::addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation,
         ConstantBufferAccessor cba;
 		perWireFramePrimitiveInstanceCBAAccessors[type].push_back(cba);
         UINT newStackCap = perWireFramePrimitiveInstanceCBAAccessors[type].size() - 1;
-		perWireFramePrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+		perWireFramePrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(WireFrameInstancedConstantBuffer));
         WireFrameInstancedConstantBuffer buf;
 		perWireFramePrimitiveInstanceBuffers[type].push_back(buf);
         perWireFramePrimitiveInstanceBufferCapacities[type] = (newStackCap + 1) * 400;
@@ -1239,6 +1235,7 @@ void Renderer::drawAddedPrimitiveInstances()
             m_commandList->SetPipelineState(mPipelineInstanced.pPipelineState);
             m_commandList->SetGraphicsRootSignature(mRootSignitureInstanced.pRootSigniture);
             perPrimitiveInstanceBuffer[type].lightViewProj = lightViewProjection;
+            perPrimitiveInstanceBuffer[type].viewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, pScene->pBoundCamera->viewMatrix);
             perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perPrimitiveInstanceBuffer[type]);
             perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
             pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);

@@ -42,9 +42,20 @@ void Scene::updateCamera(float dt)
 
 void Scene::baseInit()
 {
-	worldAABB = sphereTraceAABBConstruct1(sphereTraceVector3Construct(-500.0f, -100.0f, -500.0f),
-		sphereTraceVector3Construct(500.0f, 100.0f, 500.0f));
+	worldAABB = sphereTraceAABBConstruct1(sphereTraceVector3Construct(-500.0f, -500.0f, -500.0f),
+		sphereTraceVector3Construct(500.0f, 500.0f, 500.0f));
      octTreeGrid = sphereTraceOctTreeGridConstruct(worldAABB, sphereTraceVector3Construct(100.0f, 100.0f, 100.0f));
+	 for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
+	 {
+		 for (ST_Index y = 0; y < octTreeGrid.yBuckets; y++)
+		 {
+			 for (ST_Index x = 0; x < octTreeGrid.xBuckets; x++)
+			 {
+				 ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
+				 octTreeGrid.treeBuckets[i].maxDepth = 5;
+			 }
+		 }
+	 }
 }
 
 void Scene::addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree)
@@ -134,7 +145,7 @@ void SceneTest::draw()
 {
 	for (int i = 0; i < renderableColliders.size(); i++)
 	{
-		Renderer::instance.drawPrimitive(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
+		Renderer::instance.addPrimitiveInstance(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
 	}
 	
 

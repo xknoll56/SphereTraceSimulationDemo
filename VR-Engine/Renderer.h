@@ -69,13 +69,13 @@ public:
         float colorMix;
     };
 
-    struct alignas(256) VertexShaderInstancedConstantBuffer
-    {
-        ST_Matrix4 mvp[400];
-        ST_Matrix4 model[400];
-        ST_Vector4 colors[400];
-        ST_Matrix4 lightViewProj;
-    };
+    //struct alignas(256) VertexShaderInstancedConstantBuffer
+    //{
+    //    ST_Matrix4 mvp[400];
+    //    ST_Matrix4 model[400];
+    //    ST_Vector4 colors[400];
+    //    ST_Matrix4 lightViewProj;
+    //};
 
     struct alignas(256) WireFrameInstancedConstantBuffer
     {
@@ -107,7 +107,7 @@ public:
     ST_Matrix4 lightViewProjection;
 
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
-    VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
+    WireFrameInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
     UINT perWireFramePrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     UINT perWireFramePrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
