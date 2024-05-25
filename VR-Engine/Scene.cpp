@@ -68,14 +68,14 @@ float timeGetRandomFloatBetween0And1()
 	return (float)rand() / RAND_MAX;
 }
 
-void Scene::drawAABB(ST_AABB& aabb, ST_Vector4 color)
+void Scene::addAABB(ST_AABB& aabb, ST_Vector4 color)
 {
 	Renderer::instance.addWireFrameInstance(aabb.center, gQuaternionIdentity, sphereTraceVector3Scale(aabb.halfExtents, 2.0f), color, PRIMITIVE_BOX);
 }
 
 void Scene::drawOctTreeRecursive(ST_OctTreeNode& node, ST_Vector4 color)
 {
-	drawAABB(node.aabb, color);
+	addAABB(node.aabb, color);
 	if (node.hasChildren)
 	{
 		for (int i = 0; i < 8; i++)
@@ -85,12 +85,12 @@ void Scene::drawOctTreeRecursive(ST_OctTreeNode& node, ST_Vector4 color)
 	}
 }
 
-void Scene::drawSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color)
+void Scene::addSphereCollider(ST_SphereCollider& sphereCollider, ST_Vector4 color)
 {
 	Renderer::instance.addPrimitiveInstance(sphereCollider.rigidBody.position, sphereCollider.rigidBody.rotation, sphereTraceVector3UniformSize(sphereCollider.radius * 2.0f), color, PRIMITIVE_SPHERE);
 }
 
-void Scene::drawPlaneCollider(ST_PlaneCollider& planeCollider, ST_Vector4 color)
+void Scene::addPlaneCollider(ST_PlaneCollider& planeCollider, ST_Vector4 color)
 {
 	Renderer::instance.addPrimitiveInstance(planeCollider.position, planeCollider.rotation, ST_VECTOR3(planeCollider.xHalfExtent*2.0f, 1.0f, planeCollider.zHalfExtent*2.0f), color, PRIMITIVE_PLANE);
 }
@@ -107,12 +107,12 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 
 void SceneTest::init()
 {
-	pBoundCamera->cameraMovementSpeed = 4.0f;
+	pBoundCamera->cameraMovementSpeed = 20.0f;
 
-	for (int i = 0; i < 30; i++)
+	for (int i = 0; i < 500; i++)
 	{
 		ST_Collider* pCollider = new ST_Collider();
-		*pCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(ST_VECTOR3(3 * i, 0, 0), ST_VECTOR3(1, 1, 1)));
+		*pCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(ST_VECTOR3(3 * i, 5, 0), ST_VECTOR3(1, 1, 1)));
 		addColliderToOctTreeGrid(*pCollider, true);
 		renderableColliders.push_back(pCollider);
 	}
@@ -147,8 +147,26 @@ void SceneTest::draw()
 	{
 		Renderer::instance.addPrimitiveInstance(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
 	}
-	
+	addAABB(worldAABB, gVector4ColorGreen);
 
+	ST_AABB aabb;
+	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
+	{
+		for (ST_Index y = 0; y < octTreeGrid.yBuckets; y++)
+		{
+			for (ST_Index x = 0; x < octTreeGrid.xBuckets; x++)
+			{
+				ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
+				aabb = octTreeGrid.treeBuckets[i].root->aabb;
+				if (octTreeGrid.treeBuckets[i].root->hasChildren)
+				{
+					drawOctTreeRecursive(*octTreeGrid.treeBuckets[i].root, gVector4ColorRed);
+				}
+			}
+		}
+	}
+
+	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(5000, 5000, 5000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 
 

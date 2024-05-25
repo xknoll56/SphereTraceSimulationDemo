@@ -85,10 +85,14 @@ public:
         ST_Vector4 colors[400];
     };
 
+    WireFrameInstancedConstantBuffer instanceBuf;
+
     struct alignas(256) VertexShaderInstancedConstantBufferShadows
     {
         ST_Matrix4 mvp[400];
     };
+
+    VertexShaderInstancedConstantBufferShadows shadowInstanceBuf;
 
     struct alignas(256) PixelShaderConstantBuffer
     {
@@ -107,15 +111,19 @@ public:
     ST_Matrix4 lightViewProjection;
 
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
-    WireFrameInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
-    ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
+    UINT perPrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
+    std::vector<WireFrameInstancedConstantBuffer> perPrimitiveInstanceBuffers[4];
+    std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessors[4];
+
     UINT perWireFramePrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     UINT perWireFramePrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
     std::vector<WireFrameInstancedConstantBuffer> perWireFramePrimitiveInstanceBuffers[4];
     std::vector<ConstantBufferAccessor> perWireFramePrimitiveInstanceCBAAccessors[4];
+
     UINT perPrimitiveInstanceBufferCountsShadows[4] = { 0,0,0,0 };
-    VertexShaderInstancedConstantBufferShadows perPrimitiveInstanceBufferShadows[4];
-    ConstantBufferAccessor perPrimitiveInstanceCBAAccessorsShadows[4];
+    UINT perPrimitiveInstanceBufferCapacitiesShadows[4] = { 400,400,400,400 };
+    std::vector<VertexShaderInstancedConstantBufferShadows> perPrimitiveInstanceBufferShadows[4];
+    std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
 
 
 private:
@@ -208,7 +216,7 @@ public:
     void drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, Texture& texture, float colorMix, VertexBuffer& vertexBuffer);
     void drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, float colorMix, Model& model);
     void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
-    void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
+    //void addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, PrimitiveType type);
     void drawAddedPrimitiveInstances();
     void drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
     void addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, ST_Vector4 color, PrimitiveType type);
