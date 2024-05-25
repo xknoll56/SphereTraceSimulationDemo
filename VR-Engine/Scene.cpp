@@ -190,7 +190,6 @@ void scenePhysicsTest::init()
 void scenePhysicsTest::update(float dt)
 {
 	updateCamera(dt);
-	sphereTraceSimulationSpherePairSolver(&simSpace, dt);
 }
 
 

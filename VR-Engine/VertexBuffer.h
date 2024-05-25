@@ -10,7 +10,6 @@ struct Vertex
     ST_Vector2 uv;
 };
 
-
 struct StringManipulation
 {
     static std::vector<std::string> splitString(const std::string& str, char delimiter) {
