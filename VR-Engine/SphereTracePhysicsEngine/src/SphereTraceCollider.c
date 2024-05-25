@@ -2159,7 +2159,8 @@ void sphereTraceColliderResizeAABBWithSpherecast(const ST_SphereTraceData* const
 		}
 	}
 
-	aabb->halfExtents = sphereTraceVector3Subtract(aabb->highExtent, sphereTraceVector3Average(aabb->highExtent, aabb->lowExtent));
+	//aabb->halfExtents = sphereTraceVector3Subtract(aabb->highExtent, sphereTraceVector3Average(aabb->highExtent, aabb->lowExtent));
+	*aabb = sphereTraceAABBConstruct1(aabb->lowExtent, aabb->highExtent);
 }
 
 

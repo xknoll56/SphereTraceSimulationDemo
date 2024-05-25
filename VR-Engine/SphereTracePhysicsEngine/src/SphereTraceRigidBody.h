@@ -57,6 +57,8 @@ float sphereTraceRigidBodyGetSpeed(ST_RigidBody* const pRigidBody);
 
 float sphereTraceRigidBodySetSpeed(ST_RigidBody* const pRigidBody, float speed);
 
+void sphereTraceRigidBodySetRotation(ST_RigidBody* const pRigidBody, ST_Quaternion rotation);
+
 void sphereTraceRigidBodyResetMomentum(ST_RigidBody* const pRigidBody);
 
 void sphereTraceRigidBodyResetAngularMomentum(ST_RigidBody* const pRigidBody);

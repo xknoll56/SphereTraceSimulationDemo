@@ -119,6 +119,12 @@ float sphereTraceRigidBodySetSpeed(ST_RigidBody* const pRigidBody, float speed)
         sphereTraceVector3Scale(pRigidBody->velocity, speed / sphereTraceRigidBodyGetSpeed(pRigidBody)));
 }
 
+void sphereTraceRigidBodySetRotation(ST_RigidBody* const pRigidBody, ST_Quaternion rotation)
+{
+    pRigidBody->rotation = rotation;
+    pRigidBody->rotationMatrix = sphereTraceMatrixFromQuaternion(rotation);
+}
+
 void sphereTraceRigidBodyResetMomentum(ST_RigidBody* const pRigidBody)
 {
     pRigidBody->linearMomentum = gVector3Zero;

@@ -176,12 +176,13 @@ void scenePhysicsTest::init()
 
 	sphereTraceRigidBodyRotate(&sp.rigidBody, sphereTraceQuaternionFromAngleAxis(gVector3Forward, 0.3f));
 	sphereTraceFrameUpdateWithRotationMatrix(&sp.frame, sp.rigidBody.rotationMatrix);
-	sp.rigidBody.position = ST_VECTOR3(0, 2, 0);
+	sphereTraceColliderSpherePairSetPosition(&sp,  ST_VECTOR3(0, 2, 0));
 }
 
 void scenePhysicsTest::update(float dt)
 {
 	updateCamera(dt);
+	sphereTraceColliderSpherePairRotate(&sp, sphereTraceQuaternionFromAngleAxis(gVector3Up, dt));
 }
 
 
@@ -191,6 +192,7 @@ void scenePhysicsTest::draw()
 	sphereTraceColliderSpherePairGetSpherePositions(&sp, &leftSphere, &rightSphere);
 	Renderer::instance.drawPrimitive(leftSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
 	Renderer::instance.drawPrimitive(rightSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
+	addAABB(sp.collider.aabb, gVector4ColorRed);
 
 	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(500, 1, 500), gVector4ColorWhite, PRIMITIVE_PLANE);
 }

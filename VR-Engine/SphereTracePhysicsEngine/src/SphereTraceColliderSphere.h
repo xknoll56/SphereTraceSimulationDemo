@@ -53,3 +53,11 @@ ST_SphereCubeCluster sphereTraceColliderSphereCubeClusterConstruct(float width);
 ST_SpherePair sphereTraceColliderSpherePairConstruct(float radii, float halfDistance);
 
 void sphereTraceColliderSpherePairGetSpherePositions(const ST_SpherePair* const pSpherePair, ST_Vector3* pLeftSphere, ST_Vector3* pRightSphere);
+
+void sphereTraceColliderSpherePairSetPosition(ST_SpherePair* const pSpherePair, ST_Vector3 position);
+
+void sphereTraceColliderSpherePairSetRotation(ST_SpherePair* const pSpherePair, ST_Quaternion rotation);
+
+void sphereTraceColliderSpherePairRotate(ST_SpherePair* const pSpherePair, ST_Quaternion rotation);
+
+void sphereTraceColliderSpherePairSetAABB(ST_SpherePair* const pSpherePair);
