@@ -143,6 +143,7 @@
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderSphere.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderTerrain.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceColliderTriangle.c" />
+    <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceExperimental.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceHashTable.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceLists.c" />
     <ClCompile Include="SphereTracePhysicsEngine\src\SphereTraceMaterial.c" />
@@ -175,6 +176,7 @@
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderSphere.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderTerrain.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceColliderTriangle.h" />
+    <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceExperimental.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceGlobals.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceHashTable.h" />
     <ClInclude Include="SphereTracePhysicsEngine\src\SphereTraceLists.h" />

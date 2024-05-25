@@ -109,7 +109,7 @@ ST_Frame sphereTraceFrameConstruct()
 	return frame;
 }
 
-void sphereTraceSetFrameWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix)
+void sphereTraceFrameUpdateWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix)
 {
 	pFrame->right = sphereTraceDirectionGetLocalXAxisFromRotationMatrix(rotationMatrix);
 	pFrame->up = sphereTraceDirectionGetLocalYAxisFromRotationMatrix(rotationMatrix);

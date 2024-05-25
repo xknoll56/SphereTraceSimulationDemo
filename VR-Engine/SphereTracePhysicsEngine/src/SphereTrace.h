@@ -131,25 +131,10 @@ void sphereTraceSimulationSphereTerrainTriangleResponse(const ST_SimulationSpace
 
 void sphereTraceSimulationSphereSphereResponse(const ST_SimulationSpace* const pSimulationSpace, const ST_SphereContact* const pContactInfo, float dt);
 
-//void sphereTraceSimulationAddCurFrameContactEntry(ST_IndexList* pCollidersThatHaveSubscribers, ST_SphereContact* const pContact);
-
 void sphereTraceSimulationExecuteCallbacksOnCollider(ST_Collider* const pCollider);
-
-void sphereTraceSimulationGlobalSolveDiscreteFirstComeFirstServe(ST_SimulationSpace* const pSimulationSpace, float dt, ST_Index iterations);
-
-void sphereTraceSimulationGlobalSolveDiscrete(ST_SimulationSpace* const pSimulationSpace, float dt);
-
-void sphereTraceBoxSimulationGlobalSolveDiscrete(ST_SimulationSpace* const pSimulationSpace, float dt);
 
 void sphereTraceSimulationOctTreeGridSolveDiscrete(ST_SimulationSpace* const pSimulationSpace, float dt);
 
-//void sphereTraceSimulationSolveDiscreteFirstComeFirstServe(ST_SimulationSpace* const pSimulationSpace, float dt);
-
-void sphereTraceSimulationGlobalSolveImposedPosition(ST_SimulationSpace* const pSimulationSpace, float dt);
-
 b32 sphereTraceSimulationRayTrace(ST_SimulationSpace* const pSimulationSpace, ST_Vector3 start, ST_Direction dir, float maxDist, ST_RayTraceData* const pData);
 
-//b32 sphereTraceSimulationRayTrace(const ST_SimulationSpace* const pSimulationSpace, ST_Vector3 start, ST_Direction dir, ST_RayTraceData* const pRayCastData);
-
-//void sphereTraceSimulationSolveImposedPositionStaticSpacialPartition(ST_SimulationSpace* const pSimulationSpace, float dt);
 

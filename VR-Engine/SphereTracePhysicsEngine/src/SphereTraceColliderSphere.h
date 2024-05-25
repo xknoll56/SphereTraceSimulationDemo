@@ -52,4 +52,4 @@ ST_SphereCubeCluster sphereTraceColliderSphereCubeClusterConstruct(float width);
 
 ST_SpherePair sphereTraceColliderSpherePairConstruct(float radii, float halfDistance);
 
-void sphereTraceColliderSpherePairSetLocalAxis(ST_SpherePair* const pSpherePair);
+void sphereTraceColliderSpherePairGetSpherePositions(const ST_SpherePair* const pSpherePair, ST_Vector3* pLeftSphere, ST_Vector3* pRightSphere);

@@ -73,10 +73,9 @@ float4 PSMain(PSInput input) : SV_TARGET
     float ambient = 0.3f;
     //return baseColor * (diffuse + ambient + specular);
     
-    float margin = asin(saturate(diffuse));
-    float epsilon = 0.001 / margin;
-    //float epsilon = 0.05;
-    epsilon = clamp(epsilon, 0.0, 0.1);
+
+    float epsilon = 0.05;
+
     
     uint width;
     uint height;

@@ -287,13 +287,12 @@ typedef struct ST_SphereCubeCluster
 	float halfWidth;
 } ST_SphereCubeCluster;
 
+
 typedef struct ST_SpherePair
 {
 	ST_Collider collider;
-	ST_RigidBody sphereBodyLeft;
-	ST_RigidBody sphereBodyRight;
-
-	float sphereRadii;
+	ST_RigidBody rigidBody;
+	float radii;
 	float halfDistance;
 	b32 restingContact;
 	ST_Frame frame;
@@ -460,7 +459,7 @@ typedef struct ST_SphereTraceData
 //} ST_SphereSphereContactInfo;
 ST_Frame sphereTraceFrameConstruct();
 
-void sphereTraceSetFrameWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix);
+void sphereTraceFrameUpdateWithRotationMatrix(ST_Frame* pFrame, ST_Matrix4 rotationMatrix);
 
 ST_Edge sphereTraceEdgeConstruct(ST_Vector3 p1, ST_Vector3 p2);
 

@@ -1076,9 +1076,14 @@ ST_SpherePair sphereTraceColliderSpherePairConstruct(float radii, float halfDist
 	cluster.collider = sphereTraceColliderConstruct(COLLIDER_SPHERE_PAIR, radii+halfDistance);
 	cluster.halfDistance = halfDistance;
 	cluster.frame = sphereTraceFrameConstruct();
-	cluster.sphereRadii = radii;
-	cluster.sphereBodyLeft = sphereTraceRigidBodyConstruct(1, 1);
-	cluster.sphereBodyRight = sphereTraceRigidBodyConstruct(1, 1);
+	cluster.rigidBody = sphereTraceRigidBodyConstruct(1, 1);
+	cluster.radii = radii;
 	cluster.restingContact = ST_FALSE;
 	return cluster;
+}
+
+void sphereTraceColliderSpherePairGetSpherePositions(const ST_SpherePair* const pSpherePair, ST_Vector3* pLeftSphere, ST_Vector3* pRightSphere)
+{
+	*pLeftSphere = sphereTraceVector3AddAndScale(pSpherePair->rigidBody.position, pSpherePair->frame.right.v, -pSpherePair->halfDistance);
+	*pRightSphere = sphereTraceVector3AddAndScale(pSpherePair->rigidBody.position, pSpherePair->frame.right.v, pSpherePair->halfDistance);
 }

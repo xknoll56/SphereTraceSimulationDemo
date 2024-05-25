@@ -38,7 +38,7 @@ private:
 
 };
 
-struct SceneTest : Scene
+struct SceneRender : Scene
 {
 
     void update(float dt) override;
@@ -46,4 +46,13 @@ struct SceneTest : Scene
     void init() override;
 
     std::vector<ST_Collider*> renderableColliders;
+};
+
+struct scenePhysicsTest : Scene
+{
+    ST_SimulationSpace simSpace;
+    ST_SpherePair sp;
+    void update(float dt) override;
+    void draw() override;
+    void init() override;
 };

@@ -105,7 +105,7 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 }
 
 
-void SceneTest::init()
+void SceneRender::init()
 {
 	pBoundCamera->cameraMovementSpeed = 20.0f;
 
@@ -135,13 +135,13 @@ void SceneTest::init()
 	}
 }
 
-void SceneTest::update(float dt)
+void SceneRender::update(float dt)
 {
-	
+	updateCamera(dt);
 
 }
 
-void SceneTest::draw()
+void SceneRender::draw()
 {
 	for (int i = 0; i < renderableColliders.size(); i++)
 	{
@@ -170,3 +170,27 @@ void SceneTest::draw()
 }
 
 
+void scenePhysicsTest::init()
+{
+	sp = sphereTraceColliderSpherePairConstruct(1.0f, 1.0f);
+
+	sphereTraceRigidBodyRotate(&sp.rigidBody, sphereTraceQuaternionFromAngleAxis(gVector3Forward, 0.3f));
+	sphereTraceFrameUpdateWithRotationMatrix(&sp.frame, sp.rigidBody.rotationMatrix);
+	sp.rigidBody.position = ST_VECTOR3(0, 2, 0);
+}
+
+void scenePhysicsTest::update(float dt)
+{
+	updateCamera(dt);
+}
+
+
+void scenePhysicsTest::draw()
+{
+	ST_Vector3 leftSphere, rightSphere;
+	sphereTraceColliderSpherePairGetSpherePositions(&sp, &leftSphere, &rightSphere);
+	Renderer::instance.drawPrimitive(leftSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
+	Renderer::instance.drawPrimitive(rightSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
+
+	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(500, 1, 500), gVector4ColorWhite, PRIMITIVE_PLANE);
+}

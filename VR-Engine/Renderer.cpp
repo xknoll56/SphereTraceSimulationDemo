@@ -512,7 +512,7 @@ void Renderer::LoadAssets()
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
-    pScene = new SceneTest();
+    pScene = new scenePhysicsTest();
     pScene->pBoundCamera = &mainCamera;
     pScene->baseInit();
     pScene->init();
@@ -550,7 +550,6 @@ void Renderer::OnUpdate()
 {
     timer.update();
     pScene->update(timer.dt);
-    pScene->updateCamera(timer.dt);
 
 }
 
