@@ -176,13 +176,21 @@ void scenePhysicsTest::init()
 
 	sphereTraceRigidBodyRotate(&sp.rigidBody, sphereTraceQuaternionFromAngleAxis(gVector3Forward, 0.3f));
 	sphereTraceFrameUpdateWithRotationMatrix(&sp.frame, sp.rigidBody.rotationMatrix);
-	sphereTraceColliderSpherePairSetPosition(&sp,  ST_VECTOR3(0, 2, 0));
+	sphereTraceColliderSpherePairSetPosition(&sp,  ST_VECTOR3(0, 5, 0));
+
+	simSpace = sphereTraceSimulationConstruct();
+	sphereTraceSimulationInsertSpherePairCollider(&simSpace, &sp);
+
+	pc = sphereTraceColliderPlaneConstruct(gVector3Up, 0.0f, 100.0f, 100.0f, gVector3Zero);
+	sphereTraceSimulationInsertPlaneCollider(&simSpace, &pc);
+
+	sphereTraceRigidBodyAddDeltaMomentum(&sp.rigidBody, gVector3Right);
 }
 
 void scenePhysicsTest::update(float dt)
 {
 	updateCamera(dt);
-	sphereTraceColliderSpherePairRotate(&sp, sphereTraceQuaternionFromAngleAxis(gVector3Up, dt));
+	sphereTraceSimulationSpherePairSolver(&simSpace, dt);
 }
 
 

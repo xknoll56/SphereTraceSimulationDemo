@@ -9,3 +9,5 @@ void sphereTraceSimulationGlobalSolveDiscrete(ST_SimulationSpace* const pSimulat
 void sphereTraceBoxSimulationGlobalSolveDiscrete(ST_SimulationSpace* const pSimulationSpace, float dt);
 
 void sphereTraceSimulationGlobalSolveImposedPosition(ST_SimulationSpace* const pSimulationSpace, float dt);
+
+void sphereTraceSimulationSpherePairSolver(ST_SimulationSpace* const pSimulationSpace, float dt);

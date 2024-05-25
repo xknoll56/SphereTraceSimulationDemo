@@ -52,6 +52,7 @@ struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
     ST_SpherePair sp;
+    ST_PlaneCollider pc;
     void update(float dt) override;
     void draw() override;
     void init() override;

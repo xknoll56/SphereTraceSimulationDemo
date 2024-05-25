@@ -49,6 +49,7 @@ ST_SimulationSpace sphereTraceSimulationConstruct()
 	simulationSpace.planeColliders = sphereTraceIndexListConstruct();
 	simulationSpace.triangleColliders = sphereTraceIndexListConstruct();
 	simulationSpace.uniformTerrainColliders = sphereTraceIndexListConstruct();
+	simulationSpace.spherePairColliders = sphereTraceIndexListConstruct();
 	simulationSpace.aabbColliders = sphereTraceIndexListConstruct();
 	simulationSpace.callbackColliders = sphereTraceIndexListConstruct();
 	//simulationSpace.spacialPartitionContainer = sphereTraceSpacialPartitionStaticConstruct(20.0f);
@@ -69,6 +70,7 @@ ST_SimulationSpace sphereTraceSimulationConstruct1(ST_AABB worldaabb, ST_Vector3
 	simulationSpace.planeColliders = sphereTraceIndexListConstruct();
 	simulationSpace.triangleColliders = sphereTraceIndexListConstruct();
 	simulationSpace.uniformTerrainColliders = sphereTraceIndexListConstruct();
+	simulationSpace.spherePairColliders = sphereTraceIndexListConstruct();
 	simulationSpace.aabbColliders = sphereTraceIndexListConstruct();
 	simulationSpace.callbackColliders = sphereTraceIndexListConstruct();
 	//simulationSpace.spacialPartitionContainer = sphereTraceSpacialPartitionStaticConstruct(20.0f);
@@ -87,6 +89,7 @@ void sphereTraceSimulationFree(ST_SimulationSpace* const pSimulationSpace)
 	sphereTraceIndexListFree(&pSimulationSpace->triangleColliders);
 	sphereTraceIndexListFree(&pSimulationSpace->aabbColliders);
 	sphereTraceIndexListFree(&pSimulationSpace->callbackColliders);
+	sphereTraceIndexListFree(&pSimulationSpace->spherePairColliders);
 	ST_IndexListData* pild = pSimulationSpace->uniformTerrainColliders.pFirst;
 	ST_UniformTerrainCollider* pTerrainCollider = NULL;
 	for (int i = 0; i < pSimulationSpace->uniformTerrainColliders.count; i++)
@@ -152,6 +155,15 @@ void sphereTraceSimulationInsertUniformTerrainCollider(ST_SimulationSpace* const
 	else
 		sphereTraceOctTreeGridReInsertCollider(&pSimulationSpace->octTreeGrid, pTerrainCollider, ST_TRUE);
 
+}
+
+void sphereTraceSimulationInsertSpherePairCollider(ST_SimulationSpace* const pSimulationSpace, ST_SpherePair* const pSpherePair)
+{
+	pSpherePair->collider.colliderIndex = pSpherePair;
+	if (sphereTraceSortedIndexListAddUnique(&pSimulationSpace->spherePairColliders, pSpherePair))
+		sphereTraceOctTreeGridInsertCollider(&pSimulationSpace->octTreeGrid, pSpherePair, ST_TRUE);
+	else
+		sphereTraceOctTreeGridReInsertCollider(&pSimulationSpace->octTreeGrid, pSpherePair, ST_TRUE);
 }
 
 void sphereTraceSimulationInsertAABBCollider(ST_SimulationSpace* const pSimulationSpace, ST_Collider* const pCollider)
@@ -298,6 +310,15 @@ void sphereTraceSimulationStepQuantities(const ST_SimulationSpace* const pSimula
 	{
 		pSphereCollider = pild->value;
 		sphereTraceSimulationStepQuantity(pSimulationSpace, &pSphereCollider->rigidBody, dt);
+		pild = pild->pNext;
+	}
+
+	pild = pSimulationSpace->spherePairColliders.pFirst;
+	ST_SpherePair* pSpherePair;
+	for (int i = 0; i < pSimulationSpace->spherePairColliders.count; i++)
+	{
+		pSpherePair = pild->value;
+		sphereTraceSimulationStepQuantity(pSimulationSpace, &pSpherePair->rigidBody, dt);
 		pild = pild->pNext;
 	}
 

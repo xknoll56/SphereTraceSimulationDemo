@@ -649,3 +649,207 @@ void sphereTraceSimulationGlobalSolveImposedPosition(ST_SimulationSpace* const p
 		pSphereIndexData = pSphereIndexData->pNext;
 	}
 }
+
+
+void sphereTraceSimulationSpherePairMultipleContactResponse(const ST_SimulationSpace* const pSimulationSpace, ST_SpherePair* pSpherePair, float dt)
+{
+	ST_SphereContact* pRestingContactWithMaxForce = NULL;
+	float maxAccel = 0.0f;
+	ST_Vector3List impulses = sphereTraceVector3ListConstruct();
+	ST_Vector3List restingContactNormals = sphereTraceVector3ListConstruct();
+	ST_Vector3List restingContactPoints = sphereTraceVector3ListConstruct();
+	ST_Index numContacts = sphereTraceLinearAllocatorGetSphereContactCount();
+	for (ST_Index contactIndex = 0; contactIndex < numContacts; contactIndex++)
+	{
+		ST_SphereContact* pContactInfo = sphereTraceLinearAllocatorGetSphereContactByIndex(contactIndex);
+		ST_Vector3 r = sphereTraceVector3Subtract(pContactInfo->point, pSpherePair->rigidBody.position);
+		float vnMag = sphereTraceVector3Dot(pContactInfo->normal.v, pSpherePair->rigidBody.velocity);
+		ST_Vector3 vn = sphereTraceVector3Scale(pContactInfo->normal.v, vnMag);
+		ST_Vector3 vt = sphereTraceVector3Subtract(pSpherePair->rigidBody.velocity, vn);
+		ST_Vector3 vprel = sphereTraceVector3Add(pSpherePair->rigidBody.velocity, sphereTraceVector3Cross(pSpherePair->rigidBody.angularVelocity, r));
+		float j = -(1.0f + pSimulationSpace->defaultMaterial.restitution) * vnMag * (pSpherePair->rigidBody.mass / (float)numContacts);
+		b32 restingContactCondition = (sphereTraceAbs(vnMag) < ST_VELOCITY_THRESHOLD && pContactInfo->normal.v.y > 0.0f);
+		float accelNormal = sphereTraceAbs(vnMag);
+		if (!restingContactCondition)
+		{
+			if (vnMag < 0.0f)
+			{
+				ST_Vector3 dp = sphereTraceVector3Scale(pContactInfo->normal.v, j);
+				sphereTraceVector3ListAddFirst(&impulses, dp);
+			}
+			ST_Vector3 dl = sphereTraceVector3Cross(sphereTraceVector3Normalize(vprel), sphereTraceVector3Scale(pContactInfo->normal.v, -pSimulationSpace->defaultMaterial.kineticFriction * j));
+			if (!sphereTraceVector3NanAny(dl))
+				sphereTraceRigidBodyAddDeltaAngularMomentum(&pSpherePair->rigidBody, dl);
+
+		}
+		else
+		{
+			if (accelNormal > maxAccel)
+			{
+				pRestingContactWithMaxForce = pContactInfo;
+				maxAccel = accelNormal;
+			}
+			sphereTraceVector3ListAddFirst(&restingContactNormals, pContactInfo->normal.v);
+			sphereTraceVector3ListAddFirst(&restingContactPoints, pContactInfo->point);
+
+
+		}
+	}/*
+
+	if (pRestingContactWithMaxForce)
+	{
+		ST_Vector3 r = sphereTraceVector3Subtract(pRestingContactWithMaxForce->point, pSpherePair->rigidBody.position);
+		float vnMag = sphereTraceVector3Dot(pRestingContactWithMaxForce->normal.v, pSpherePair->rigidBody.velocity);
+		ST_Vector3 vn = sphereTraceVector3Scale(pRestingContactWithMaxForce->normal.v, vnMag);
+		ST_Vector3 vt = sphereTraceVector3Subtract(pSpherePair->rigidBody.velocity, vn);
+		float j = -(1.0f + pSimulationSpace->defaultMaterial.restitution) * vnMag * pSpherePair->rigidBody.mass;
+		float accelNormal = sphereTraceAbs(vnMag);
+		pSpherePair->rigidBody.linearMomentum = sphereTraceVector3Scale(vt, pSpherePair->rigidBody.mass);
+		ST_Vector3 actualVelocity = sphereTraceVector3Subtract(pSpherePair->rigidBody.position, pSpherePair->rigidBody.prevPosition);
+		sphereTraceVector3ScaleByRef(&actualVelocity, 1.0f / dt);
+		ST_Vector3 rollingWithoutSlipAngularVelocity = sphereTraceVector3Cross(pRestingContactWithMaxForce->normal.v, sphereTraceVector3Scale(vt, 1.0f / pSpherePair->radii));
+		ST_Vector3 f = sphereTraceVector3Scale(sphereTraceVector3Normalize(pSpherePair->rigidBody.velocity),
+			(-accelNormal + pSimulationSpace->gravitationalAcceleration.y) * pSpherePair->rigidBody.mass * pSimulationSpace->defaultMaterial.staticFriction * ST_FRICTION_MODIFIER);
+		if (!sphereTraceVector3NanAny(f))
+			sphereTraceRigidBodyAddForce(&pSpherePair->rigidBody, f);
+	}
+
+
+	ST_Vector3ListData* pvld = impulses.pFirst;
+	ST_Vector3 forceSum = gVector3Zero;
+	for (int i = 0; i < impulses.count; i++)
+	{
+
+		ST_Vector3 modifiedForce = pvld->value;
+		ST_Vector3ListData* pRestingContactNormalsData = restingContactNormals.pFirst;
+		for (int j = 0; j < restingContactNormals.count; j++)
+		{
+			float fnm = sphereTraceVector3Dot(modifiedForce, pRestingContactNormalsData->value);
+			if (fnm < 0.0f)
+			{
+				ST_Vector3 fn = sphereTraceVector3Scale(pRestingContactNormalsData->value, fnm);
+				modifiedForce = sphereTraceVector3Subtract(modifiedForce, fn);
+			}
+			pRestingContactNormalsData = pRestingContactNormalsData->pNext;
+		}
+		sphereTraceVector3AddByRef(&forceSum, modifiedForce);
+		pvld = pvld->pNext;
+	}
+	sphereTraceRigidBodyAddDeltaMomentum(&pSpherePair->rigidBody, forceSum);*/
+	sphereTraceVector3ListFree(&impulses);
+	sphereTraceVector3ListFree(&restingContactNormals);
+	sphereTraceVector3ListFree(&restingContactPoints);
+
+}
+
+void sphereTraceSimulationSpherePairSolver(ST_SimulationSpace* const pSimulationSpace, float dt)
+{
+
+	dt = sphereTraceMin(dt, pSimulationSpace->minDeltaTime);
+	if (dt < 0.0f)
+		dt = pSimulationSpace->minDeltaTime;
+
+	//step all quantities
+	sphereTraceSimulationStepQuantities(pSimulationSpace, dt);
+
+	//update all sphere aabb's 
+	ST_IndexListData* pSpherePairIndexData;
+	ST_IndexListData* pOtherIndexData;
+	pSpherePairIndexData = pSimulationSpace->spherePairColliders.pFirst;
+	for (int sphereColliderIndex = 0; sphereColliderIndex < pSimulationSpace->spherePairColliders.count; sphereColliderIndex++)
+	{
+		ST_SpherePair* pSpherePairCollider = (ST_SpherePair*)pSpherePairIndexData->value;
+		sphereTraceColliderSpherePairSetAABB(pSpherePairCollider);
+		sphereTraceFrameUpdateWithRotationMatrix(&pSpherePairCollider->frame, pSpherePairCollider->rigidBody.rotationMatrix);
+		pSpherePairIndexData = pSpherePairIndexData->pNext;
+	}
+
+	PenetrationRestriction penetrationRestriction;
+
+	//ST_SphereContact contacts[ST_CONTACT_MAX];
+	ST_Index contactsCount;
+
+	////first do all sphere-sphere collisions
+	//pSpherePairIndexData = pSimulationSpace->spherePairColliders.pFirst;
+	//for (int sphereColliderIndex = 0; sphereColliderIndex < pSimulationSpace->spherePairColliders.count; sphereColliderIndex++)
+	//{
+	//	ST_SphereCollider* pSphereCollider = (ST_SphereCollider*)pSphereIndexData->value;
+
+	//	//check for all sphere sphere collisions
+	//	pOtherIndexData = pSimulationSpace->sphereColliders.pFirst;
+	//	for (int sphereColliderBIndex = 0; sphereColliderBIndex < pSimulationSpace->sphereColliders.count; sphereColliderBIndex++)
+	//	{
+	//		ST_SphereCollider* pSphereColliderB = (ST_SphereCollider*)pOtherIndexData->value;
+
+	//		if (pSphereCollider != pSphereColliderB)
+	//		{
+	//			ST_SphereContact contactInfo;
+	//			if (sphereTraceColliderSphereSphereCollisionTest(pSphereCollider, pSphereColliderB, &contactInfo))
+	//			{
+	//				sphereTraceSimulationAddCurFrameContactEntry(&contactInfo);
+	//				sphereTraceSimulationSphereSphereResponse(pSimulationSpace, &contactInfo, dt);
+	//			}
+	//		}
+	//		pOtherIndexData = pOtherIndexData->pNext;
+	//	}
+	//	pSphereIndexData = pSphereIndexData->pNext;
+	//}
+
+	//check for all sphere plane collisions
+	ST_SphereCollider ghostSphere;
+	pSpherePairIndexData = pSimulationSpace->spherePairColliders.pFirst;
+	for (int sphereColliderIndex = 0; sphereColliderIndex < pSimulationSpace->spherePairColliders.count; sphereColliderIndex++)
+	{
+		ST_SpherePair* pSpherePairCollider = (ST_SpherePair*)pSpherePairIndexData->value;
+		ghostSphere.rigidBody = pSpherePairCollider->rigidBody;
+		ghostSphere.radius = pSpherePairCollider->radii;
+		ST_SphereContact contactInfo;
+		//penetrationRestriction.penetrationRestrictionType = ST_PENETRATION_RESTRICTION_NONE;
+		//penetrationRestriction.restrictionDirectionSet = 0;
+		penetrationRestriction = sphereTracePenetrationRestrictionConstruct();
+		contactsCount = 0;
+		sphereTraceLinearAllocatorResetSphereContacts();
+		ST_Vector3 spherePos1, spherePos2;
+		sphereTraceColliderSpherePairGetSpherePositions(pSpherePairCollider, &spherePos1, &spherePos2);
+
+		pOtherIndexData = pSimulationSpace->planeColliders.pFirst;
+		for (int planeColliderIndex = 0; planeColliderIndex < pSimulationSpace->planeColliders.count; planeColliderIndex++)
+		{
+			ST_PlaneCollider* pPlaneCollider = (ST_PlaneCollider*)pOtherIndexData->value;
+			if (sphereTraceColliderPlaneImposedSphereCollisionTest(pPlaneCollider, spherePos1, pSpherePairCollider->radii, &contactInfo))
+			{
+				ghostSphere.rigidBody.position = sphereTraceVector3Add(ghostSphere.rigidBody.position, sphereTraceVector3Scale(contactInfo.normal.v, contactInfo.penetrationDistance));
+				ST_SphereContact* pAllocatedContact = sphereTraceLinearAllocatorAllocateSphereContact();
+				*pAllocatedContact = contactInfo;
+			}
+			if (sphereTraceColliderPlaneImposedSphereCollisionTest(pPlaneCollider, spherePos2, pSpherePairCollider->radii, &contactInfo))
+			{
+				ghostSphere.rigidBody.position = sphereTraceVector3Add(ghostSphere.rigidBody.position, sphereTraceVector3Scale(contactInfo.normal.v, contactInfo.penetrationDistance));
+				ST_SphereContact* pAllocatedContact = sphereTraceLinearAllocatorAllocateSphereContact();
+				*pAllocatedContact = contactInfo;
+			}
+			pOtherIndexData = pOtherIndexData->pNext;
+		}
+
+
+		ST_Vector3 dp = sphereTraceVector3Subtract(ghostSphere.rigidBody.position, ghostSphere.rigidBody.prevPosition);
+		float actualSpeed = sqrtf(sphereTraceVector3Dot(dp, dp)) / dt;
+		float rbSpeed = sphereTraceRigidBodyGetSpeed(&ghostSphere.rigidBody);
+		//if the actual position speed calculation is greater than the rigidbody speed
+		//some sort of teleportation is taking place due to the penetration constraints
+		//and we need to cap the teleportation
+		if (actualSpeed > rbSpeed)
+		{
+			//printf("speed: %f, actual speed: %f\n", actualSpeed, rbSpeed);
+			ST_Vector3 dir = sphereTraceVector3Normalize(dp);
+			sphereTraceVector3AddAndScaleByRef(&ghostSphere.rigidBody.prevPosition, dir, rbSpeed * dt);
+		}
+		//printf("contacts count: %i\n", contactsCount);
+		pSpherePairCollider->rigidBody = ghostSphere.rigidBody;
+		sphereTraceSimulationSpherePairMultipleContactResponse(pSimulationSpace, pSpherePairCollider, dt);
+
+
+		pSpherePairIndexData = pSpherePairIndexData->pNext;
+	}
+
+}

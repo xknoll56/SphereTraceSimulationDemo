@@ -35,6 +35,7 @@
 
 extern "C" {
 #include "SphereTracePhysicsEngine/src/SphereTrace.h"
+#include "SphereTracePhysicsEngine/src/SphereTraceExperimental.h"
 }
 
 

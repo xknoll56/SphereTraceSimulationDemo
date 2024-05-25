@@ -38,6 +38,7 @@ typedef struct ST_SimulationSpace
 	ST_IndexList planeColliders;
 	ST_IndexList triangleColliders;
 	ST_IndexList uniformTerrainColliders;
+	ST_IndexList spherePairColliders;
 	ST_IndexList aabbColliders;
 	ST_IndexList callbackColliders;
 	//ST_IndexList translatedStaticColliders;
@@ -102,6 +103,8 @@ void sphereTraceSimulationInsertBoxCollider(ST_SimulationSpace* const pSimulatio
 
 void sphereTraceSimulationInsertUniformTerrainCollider(ST_SimulationSpace* const pSimulationSpace, ST_UniformTerrainCollider* const pTerrainCollider);
 
+void sphereTraceSimulationInsertSpherePairCollider(ST_SimulationSpace* const pSimulationSpace, ST_SpherePair* const pSpherePair);
+
 void sphereTraceSimulationInsertAABBCollider(ST_SimulationSpace* const pSimulationSpace, ST_Collider* const pCollider);
 
 void sphereTraceSimulationRemoveCollider(ST_SimulationSpace* const pSimulationSpace, ST_Collider* const pCollider, b32 restructureTree);
@@ -118,6 +121,9 @@ void sphereTraceSimulationStepQuantity(const ST_SimulationSpace* const pSimulati
 
 ST_Vector3 sphereTraceSimulationImposedStepPosition(const ST_SimulationSpace* const pSimulationSpace, ST_RigidBody* const pRigidBody, float dt);
 
+void sphereTraceSimulationSphereMultipleContactResponse(const ST_SimulationSpace* const pSimulationSpace, ST_SphereCollider* pSphereCollider, float dt);
+
+void sphereTraceSimulationResolvePenetration(ST_SphereCollider* pSphereCollider, ST_SphereContact* pContact, PenetrationRestriction* pPenetrationRestriction);
 
 void sphereTraceSimulationStepQuantities(const ST_SimulationSpace* const pSimulationSpace, float dt);
 
