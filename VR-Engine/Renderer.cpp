@@ -400,7 +400,13 @@ void Renderer::LoadAssets()
     for (int i = 0; i < 4; i++)
     {
         perPrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
-        perWireFramePrimitiveInstanceCBAAccessors[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+
+        ConstantBufferAccessor accessor;
+        perWireFramePrimitiveInstanceCBAAccessors[i].push_back(accessor);
+        perWireFramePrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+        VertexShaderInstancedConstantBuffer buf;
+        perWireFramePrimitiveInstanceBuffers[i].push_back(buf);
+
         perPrimitiveInstanceCBAAccessorsShadows[i].init(m_device.Get(), dhp, &perPrimitiveInstanceBufferShadows[0], sizeof(VertexShaderInstancedConstantBufferShadows));
     }
     UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 2000);
@@ -1137,14 +1143,25 @@ void Renderer::addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation,
 {
     if (isShadowPass)
         return;
-    perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
+    UINT stackInd = perWireFramePrimitiveInstanceBufferCounts[type] / 400;
+    UINT bufInd = perWireFramePrimitiveInstanceBufferCounts[type] % 400;
+    perWireFramePrimitiveInstanceBuffers[type][stackInd].model[bufInd] = sphereTraceMatrixMult(sphereTraceMatrixTranslation(position),
         sphereTraceMatrixMult(sphereTraceMatrixFromQuaternion(rotation), sphereTraceMatrixScale(scale)));
-    perWireFramePrimitiveInstanceBuffer[type].mvp[perWireFramePrimitiveInstanceBufferCounts[type]] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
-        perWireFramePrimitiveInstanceBuffer[type].model[perWireFramePrimitiveInstanceBufferCounts[type]]));
-    perWireFramePrimitiveInstanceBuffer[type].colors[perWireFramePrimitiveInstanceBufferCounts[type]] = color;
+    perWireFramePrimitiveInstanceBuffers[type][stackInd].mvp[bufInd] = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix,
+        perWireFramePrimitiveInstanceBuffers[type][stackInd].model[bufInd]));
+    perWireFramePrimitiveInstanceBuffers[type][stackInd].colors[bufInd] = color;
 
-    perWireFramePrimitiveInstanceBufferCounts[type]++;
-    perWireFramePrimitiveInstanceBufferCounts[type] %= 400;
+	perWireFramePrimitiveInstanceBufferCounts[type]++;
+	if (perWireFramePrimitiveInstanceBufferCounts[type] >= perWireFramePrimitiveInstanceBufferCapacities[type])
+	{
+        ConstantBufferAccessor cba;
+		perWireFramePrimitiveInstanceCBAAccessors[type].push_back(cba);
+        UINT newStackCap = perWireFramePrimitiveInstanceCBAAccessors[type].size() - 1;
+		perWireFramePrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffer[0], sizeof(VertexShaderInstancedConstantBuffer));
+		VertexShaderInstancedConstantBuffer buf;
+		perWireFramePrimitiveInstanceBuffers[type].push_back(buf);
+        perWireFramePrimitiveInstanceBufferCapacities[type] = (newStackCap + 1) * 400;
+	}
 }
 void Renderer::drawAddedWireFrameInstances()
 {
@@ -1155,23 +1172,30 @@ void Renderer::drawAddedWireFrameInstances()
         PrimitiveType type = (PrimitiveType)i;
         if (perWireFramePrimitiveInstanceBufferCounts[type] == 0)
             continue;
+
         m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
         m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-        perPrimitiveInstanceCBAAccessors[type].updateConstantBufferData(&perWireFramePrimitiveInstanceBuffer[type]);
-        perPrimitiveInstanceCBAAccessors[type].bind(m_commandList.Get(), 0);
 
-        switch (type)
+        UINT numStacks = (perWireFramePrimitiveInstanceBufferCounts[type] / 400)+1;
+        for (int j = 0; j < numStacks; j++)
         {
-        case PRIMITIVE_PLANE:
-            mGridVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
-            break;
-        case PRIMITIVE_BOX:
-            mCubeWireFrameVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
-            break;
-        case PRIMITIVE_SPHERE:
-            mSphereWireFrameVB.drawInstanced(m_commandList.Get(), perWireFramePrimitiveInstanceBufferCounts[type]);
-            break;
+
+            perWireFramePrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perWireFramePrimitiveInstanceBuffers[type][j]);
+            perWireFramePrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
+            UINT numInstance = j < numStacks - 1 ? 400 : perWireFramePrimitiveInstanceBufferCounts[type] % 400;
+            switch (type)
+            {
+            case PRIMITIVE_PLANE:
+                mGridVB.drawInstanced(m_commandList.Get(), numInstance);
+                break;
+            case PRIMITIVE_BOX:
+                mCubeWireFrameVB.drawInstanced(m_commandList.Get(), numInstance);
+                break;
+            case PRIMITIVE_SPHERE:
+                mSphereWireFrameVB.drawInstanced(m_commandList.Get(), numInstance);
+                break;
+            }
         }
         perWireFramePrimitiveInstanceBufferCounts[type] = 0;
     }

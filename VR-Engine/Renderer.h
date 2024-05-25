@@ -102,8 +102,9 @@ public:
     VertexShaderInstancedConstantBuffer perPrimitiveInstanceBuffer[4];
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
     UINT perWireFramePrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
-    VertexShaderInstancedConstantBuffer perWireFramePrimitiveInstanceBuffer[4];
-    ConstantBufferAccessor perWireFramePrimitiveInstanceCBAAccessors[4];
+    UINT perWireFramePrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
+    std::vector<VertexShaderInstancedConstantBuffer> perWireFramePrimitiveInstanceBuffers[4];
+    std::vector<ConstantBufferAccessor> perWireFramePrimitiveInstanceCBAAccessors[4];
     UINT perPrimitiveInstanceBufferCountsShadows[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBufferShadows perPrimitiveInstanceBufferShadows[4];
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessorsShadows[4];
