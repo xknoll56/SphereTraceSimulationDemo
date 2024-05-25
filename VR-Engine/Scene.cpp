@@ -105,20 +105,7 @@ void SceneTest::init()
 		addColliderToOctTreeGrid(*pCollider, true);
 		renderableColliders.push_back(pCollider);
 	}
-}
 
-void SceneTest::update(float dt)
-{
-	
-
-}
-
-void SceneTest::draw()
-{
-	for (int i = 0; i < renderableColliders.size(); i++)
-	{
-		Renderer::instance.drawPrimitive(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
-	}
 	ST_AABB aabb;
 	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
 	{
@@ -135,6 +122,22 @@ void SceneTest::draw()
 			}
 		}
 	}
+}
+
+void SceneTest::update(float dt)
+{
+	
+
+}
+
+void SceneTest::draw()
+{
+	for (int i = 0; i < renderableColliders.size(); i++)
+	{
+		Renderer::instance.drawPrimitive(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
+	}
+	
+
 }
 
 

@@ -77,6 +77,14 @@ public:
         ST_Matrix4 lightViewProj;
     };
 
+    struct alignas(256) WireFrameInstancedConstantBuffer
+    {
+        ST_Matrix4 viewProjection;
+        ST_Matrix4 lightViewProj;
+        ST_Matrix4 model[400];
+        ST_Vector4 colors[400];
+    };
+
     struct alignas(256) VertexShaderInstancedConstantBufferShadows
     {
         ST_Matrix4 mvp[400];
@@ -103,7 +111,7 @@ public:
     ConstantBufferAccessor perPrimitiveInstanceCBAAccessors[4];
     UINT perWireFramePrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     UINT perWireFramePrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
-    std::vector<VertexShaderInstancedConstantBuffer> perWireFramePrimitiveInstanceBuffers[4];
+    std::vector<WireFrameInstancedConstantBuffer> perWireFramePrimitiveInstanceBuffers[4];
     std::vector<ConstantBufferAccessor> perWireFramePrimitiveInstanceCBAAccessors[4];
     UINT perPrimitiveInstanceBufferCountsShadows[4] = { 0,0,0,0 };
     VertexShaderInstancedConstantBufferShadows perPrimitiveInstanceBufferShadows[4];
@@ -119,7 +127,7 @@ private:
     // available.
     // It should be noted that excessive buffering of frames dependent on user input
     // may result in noticeable latency in your app.
-    static const UINT FrameCount = 3;
+    static const UINT FrameCount = 10;
     static const UINT TextureWidth = 256;
     static const UINT TextureHeight = 256;
     static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
