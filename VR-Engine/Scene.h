@@ -56,6 +56,8 @@ struct ColliderModel
 struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
+    ST_SphereCollider* psc;
+    bool started = false;
     std::vector<ColliderModel> models;
     void update(float dt) override;
     void draw() override;

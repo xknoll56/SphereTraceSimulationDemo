@@ -70,6 +70,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
     float4 baseColor = input.color;
+    float alpha = baseColor.w;
     float ambient = 0.3f;
     //return baseColor * (diffuse + ambient + specular);
     
@@ -101,6 +102,6 @@ float4 PSMain(PSInput input) : SV_TARGET
     }
     
     float4 lighting = (diffuse * shadowFactor + ambient + specular * shadowFactor) * baseColor;
-    return lighting;
+    return float4(lighting.xyz, alpha);
 
 }

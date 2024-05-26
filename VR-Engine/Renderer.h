@@ -125,7 +125,7 @@ public:
     std::vector<VertexShaderInstancedConstantBufferShadows> perPrimitiveInstanceBufferShadows[4];
     std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
 
-
+    bool skipShadowPass = false;
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
     // number of frames that will be queued to the GPU at a time, as well as the number

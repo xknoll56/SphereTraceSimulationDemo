@@ -188,21 +188,28 @@ ST_Vector3 getRandomPointInVector3(ST_Vector3 vec)
 }
 void scenePhysicsTest::init()
 {
-	Renderer::instance.mainCamera.cameraMovementSpeed = 10.0f;
+	Renderer::instance.skipShadowPass = true;
+	Renderer::instance.mainCamera.cameraMovementSpeed = 22.0f;
 	simSpace = sphereTraceSimulationConstruct();
 	ST_SphereCollider* pSphere;
 	ST_PlaneCollider* pPlane;
 	ColliderModel model;
 	ST_AABB spawnAABB = sphereTraceAABBConstruct1(ST_VECTOR3(-400, -400, -400), ST_VECTOR3(400, 400, 400));
+	models.reserve(3000);
 	for (int i = 0; i < 1000; i++)
 	{
 		pSphere = (ST_SphereCollider*)sphereTraceAllocatorAllocateCollider(COLLIDER_SPHERE);
 		*pSphere = sphereTraceColliderSphereConstruct(0.5f);
 		sphereTraceColliderSphereSetPosition(pSphere, getRandomPointInAABB(simSpace.worldAABB));
 		model.pCollider = (ST_Collider*)pSphere;
+		if (i == 0)
+		{
+			psc = pSphere;
+		}
 		model.color = ST_VECTOR4(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f);
 		models.push_back(model);
 		pSphere->collider.pWhatever = (ST_Index)&models[models.size() - 1];
+		sphereTraceSimulationInsertSphereCollider(&simSpace, pSphere);
 	}
 
 	for (int i = 0; i < 1000; i++)
@@ -214,29 +221,83 @@ void scenePhysicsTest::init()
 		model.color = ST_VECTOR4(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f);
 		models.push_back(model);
 		pPlane->collider.pWhatever = (ST_Index)&models[models.size() - 1];
+		sphereTraceSimulationInsertPlaneCollider(&simSpace, pPlane);
 	}
 }
 
 void scenePhysicsTest::update(float dt)
 {
 	updateCamera(dt);
+	if(started)
+		sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, dt);
+	ST_IndexListData* pild = simSpace.octTreeGrid.outsideColliders.pFirst;
+	ST_Collider* pCollider;
+	ST_SphereCollider* pSphere;
+	for (int i = 0; i < simSpace.octTreeGrid.outsideColliders.count; i++)
+	{
+		pCollider = (ST_Collider*)pild->value;
+		if (pCollider->colliderType == COLLIDER_SPHERE)
+		{
+			pSphere = (ST_SphereCollider*)pCollider;
+			sphereTraceRigidBodyResetMomentum(&pSphere->rigidBody);
+			sphereTraceRigidBodyResetAngularMomentum(&pSphere->rigidBody);
+			sphereTraceColliderSphereSetPosition(pSphere, sphereTraceVector3Construct(simSpace.worldAABB.halfExtents.x * 0.5f * (timeGetRandomFloatBetween0And1() - 0.5f),
+				simSpace.worldAABB.halfExtents.y * 0.45f, simSpace.worldAABB.halfExtents.z * (timeGetRandomFloatBetween0And1() - 0.5f)));
+		}
+		pild = pild->pNext;
+	}
+
+	if (Input::keysDown[VK_SPACE])
+	{
+		started = true;
+		sphereTraceColliderSphereSetPosition(psc, Renderer::instance.mainCamera.cameraPos);
+		sphereTraceRigidBodyResetMomentum(&psc->rigidBody);
+	}
 }
 
 
 void scenePhysicsTest::draw()
 {
 	addAABB(simSpace.worldAABB, gVector4ColorGreen);
-	for (int i = 0; i < models.size(); i++)
+
+	ST_IndexList viewColliders = sphereTraceIndexListConstruct();
+	ST_IndexList leafNodes = sphereTraceIndexListConstruct();
+	sphereTraceOctTreeGridSampleIntersectionLeafsAndCollidersFromPerspective(&simSpace.octTreeGrid, Renderer::instance.mainCamera.cameraPos,
+		sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), sphereTraceDegreesToRadians(120.0f), 200.0f, &leafNodes, &viewColliders);
+	ColliderModel model;
+	ST_Collider* pCollider;
+	ST_IndexListData* pild = viewColliders.pFirst;
+	for (int i = 0; i < viewColliders.count; i++)
 	{
-		switch (models[i].pCollider->colliderType)
+		pCollider = (ST_Collider*)pild->value;
+		model = *(ColliderModel*)pCollider->pWhatever;
+		switch (model.pCollider->colliderType)
 		{
 		case COLLIDER_SPHERE:
-			addSphereCollider(*(ST_SphereCollider*)models[i].pCollider, models[i].color);
+			addSphereCollider(*(ST_SphereCollider*)model.pCollider, model.color);
 			break;
 		case COLLIDER_PLANE:
-			addPlaneCollider(*(ST_PlaneCollider*)models[i].pCollider, models[i].color);
+			addPlaneCollider(*(ST_PlaneCollider*)model.pCollider, model.color);
+			//Renderer::instance.addPrimitiveInstance(model.pCollider->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*model.pCollider->boundingRadius),
+			//	sphereTraceVector4ColorSetAlpha(model.color, 0.5f), PRIMITIVE_SPHERE);
 			break;
 
 		}
+		pild = pild->pNext;
 	}
+	sphereTraceIndexListFree(&viewColliders);
+	sphereTraceIndexListFree(&leafNodes);
+
+	//for (int i = 0; i < models.size(); i++)
+	//{
+	//	switch (models[i].pCollider->colliderType)
+	//	{
+	//	case COLLIDER_SPHERE:
+	//		addSphereCollider(*(ST_SphereCollider*)models[i].pCollider, models[i].color);
+	//		break;
+	//	case COLLIDER_PLANE:
+	//		addPlaneCollider(*(ST_PlaneCollider*)models[i].pCollider, models[i].color);
+	//		break;
+	//	}
+	//}
 }
