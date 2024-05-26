@@ -48,11 +48,15 @@ struct SceneRender : Scene
     std::vector<ST_Collider*> renderableColliders;
 };
 
+struct ColliderModel
+{
+    ST_Collider* pCollider;
+    ST_Vector4 color;
+};
 struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
-    ST_SpherePair sp;
-    ST_PlaneCollider pc;
+    std::vector<ColliderModel> models;
     void update(float dt) override;
     void draw() override;
     void init() override;

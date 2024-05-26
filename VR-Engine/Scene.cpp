@@ -63,10 +63,7 @@ void Scene::addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree
 	sphereTraceOctTreeGridInsertCollider(&octTreeGrid, &collider, restructureTree);
 }
 
-float timeGetRandomFloatBetween0And1()
-{
-	return (float)rand() / RAND_MAX;
-}
+
 
 void Scene::addAABB(ST_AABB& aabb, ST_Vector4 color)
 {
@@ -169,22 +166,55 @@ void SceneRender::draw()
 	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(5000, 5000, 5000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 
+float timeGetRandomFloatBetween0And1()
+{
+	return (float)rand() / RAND_MAX;
+}
 
+ST_Vector3 getRandomPointInAABB(ST_AABB aabb)
+{
+	ST_Vector3 offset = ST_VECTOR3(2.0f * aabb.halfExtents.x * (timeGetRandomFloatBetween0And1() - 0.5f),
+		2.0f * aabb.halfExtents.y * (timeGetRandomFloatBetween0And1() - 0.5f),
+		2.0f * aabb.halfExtents.z * (timeGetRandomFloatBetween0And1() - 0.5f));
+	return sphereTraceVector3Add(aabb.center, offset);
+}
+
+ST_Vector3 getRandomPointInVector3(ST_Vector3 vec)
+{
+	ST_Vector3 offset = ST_VECTOR3(timeGetRandomFloatBetween0And1() * vec.x,
+		timeGetRandomFloatBetween0And1() * vec.y,
+		timeGetRandomFloatBetween0And1() * vec.z);
+	return offset;
+}
 void scenePhysicsTest::init()
 {
-	sp = sphereTraceColliderSpherePairConstruct(1.0f, 1.0f);
-
-	sphereTraceRigidBodyRotate(&sp.rigidBody, sphereTraceQuaternionFromAngleAxis(gVector3Forward, 0.3f));
-	sphereTraceFrameUpdateWithRotationMatrix(&sp.frame, sp.rigidBody.rotationMatrix);
-	sphereTraceColliderSpherePairSetPosition(&sp,  ST_VECTOR3(0, 5, 0));
-
+	Renderer::instance.mainCamera.cameraMovementSpeed = 10.0f;
 	simSpace = sphereTraceSimulationConstruct();
-	sphereTraceSimulationInsertSpherePairCollider(&simSpace, &sp);
+	ST_SphereCollider* pSphere;
+	ST_PlaneCollider* pPlane;
+	ColliderModel model;
+	ST_AABB spawnAABB = sphereTraceAABBConstruct1(ST_VECTOR3(-400, -400, -400), ST_VECTOR3(400, 400, 400));
+	for (int i = 0; i < 1000; i++)
+	{
+		pSphere = (ST_SphereCollider*)sphereTraceAllocatorAllocateCollider(COLLIDER_SPHERE);
+		*pSphere = sphereTraceColliderSphereConstruct(0.5f);
+		sphereTraceColliderSphereSetPosition(pSphere, getRandomPointInAABB(simSpace.worldAABB));
+		model.pCollider = (ST_Collider*)pSphere;
+		model.color = ST_VECTOR4(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f);
+		models.push_back(model);
+		pSphere->collider.pWhatever = (ST_Index)&models[models.size() - 1];
+	}
 
-	pc = sphereTraceColliderPlaneConstruct(gVector3Up, 0.0f, 100.0f, 100.0f, gVector3Zero);
-	sphereTraceSimulationInsertPlaneCollider(&simSpace, &pc);
-
-	sphereTraceRigidBodyAddDeltaMomentum(&sp.rigidBody, gVector3Right);
+	for (int i = 0; i < 1000; i++)
+	{
+		pPlane = (ST_PlaneCollider*)sphereTraceAllocatorAllocateCollider(COLLIDER_PLANE);
+		*pPlane = sphereTraceColliderPlaneConstruct(sphereTraceVector3Subtract(getRandomPointInVector3(ST_VECTOR3(1.0f, 1.0f, 1.0f)), ST_VECTOR3(0.5, -0.5, 0.5)),
+			timeGetRandomFloatBetween0And1() * M_PI, timeGetRandomFloatBetween0And1() * 100.0f, timeGetRandomFloatBetween0And1() * 100.0f, getRandomPointInAABB(spawnAABB));
+		model.pCollider = (ST_Collider*)pPlane;
+		model.color = ST_VECTOR4(timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), timeGetRandomFloatBetween0And1(), 1.0f);
+		models.push_back(model);
+		pPlane->collider.pWhatever = (ST_Index)&models[models.size() - 1];
+	}
 }
 
 void scenePhysicsTest::update(float dt)
@@ -195,11 +225,18 @@ void scenePhysicsTest::update(float dt)
 
 void scenePhysicsTest::draw()
 {
-	ST_Vector3 leftSphere, rightSphere;
-	sphereTraceColliderSpherePairGetSpherePositions(&sp, &leftSphere, &rightSphere);
-	Renderer::instance.drawPrimitive(leftSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
-	Renderer::instance.drawPrimitive(rightSphere, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*sp.radii), gVector4ColorGreen, PRIMITIVE_SPHERE);
-	addAABB(sp.collider.aabb, gVector4ColorRed);
+	addAABB(simSpace.worldAABB, gVector4ColorGreen);
+	for (int i = 0; i < models.size(); i++)
+	{
+		switch (models[i].pCollider->colliderType)
+		{
+		case COLLIDER_SPHERE:
+			addSphereCollider(*(ST_SphereCollider*)models[i].pCollider, models[i].color);
+			break;
+		case COLLIDER_PLANE:
+			addPlaneCollider(*(ST_PlaneCollider*)models[i].pCollider, models[i].color);
+			break;
 
-	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(500, 1, 500), gVector4ColorWhite, PRIMITIVE_PLANE);
+		}
+	}
 }
