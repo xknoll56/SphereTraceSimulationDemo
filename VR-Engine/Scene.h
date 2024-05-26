@@ -6,6 +6,7 @@ class Renderer;
 struct VertexBuffer;
 struct Material;
 struct Model;
+struct Time;
 
 enum PrimitiveType
 {
@@ -19,10 +20,19 @@ struct Scene
 {
 public:
     Camera* pBoundCamera;
+    Camera* pBoundLightCamera;
+    Time* pTimer;
     void updateCamera(float dt);
+    // Called once from camera perspective and once per main camera
     virtual void draw() = 0;
+    // Called at startup
     virtual void init() = 0;
+    // Called once per frame
     virtual void update(float dt) = 0;
+    // Called once from light camera
+    virtual void lightDraw() = 0;
+    // Called once from main camera 
+    virtual void mainDraw() = 0;
     void baseInit();
 protected:
     void addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree);
@@ -34,6 +44,7 @@ protected:
     ST_AABB worldAABB;
     ST_OctTreeGrid octTreeGrid;
     std::vector<Model> model;
+    
 private:
 
 };
@@ -44,6 +55,8 @@ struct SceneRender : Scene
     void update(float dt) override;
     void draw() override;
     void init() override;
+    void lightDraw() override;
+    void mainDraw() override;
 
     std::vector<ST_Collider*> renderableColliders;
 };
@@ -57,6 +70,7 @@ struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
     ST_SphereCollider* psc;
+    ST_RayTraceData rtd;
     bool started = false;
     std::vector<ColliderModel> models;
     void update(float dt) override;

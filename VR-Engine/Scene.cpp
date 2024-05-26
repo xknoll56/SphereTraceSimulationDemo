@@ -104,66 +104,29 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 
 void SceneRender::init()
 {
-	pBoundCamera->cameraMovementSpeed = 20.0f;
-
-	for (int i = 0; i < 500; i++)
-	{
-		ST_Collider* pCollider = new ST_Collider();
-		*pCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(ST_VECTOR3(3 * i, 5, 0), ST_VECTOR3(1, 1, 1)));
-		addColliderToOctTreeGrid(*pCollider, true);
-		renderableColliders.push_back(pCollider);
-	}
-
-	ST_AABB aabb;
-	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
-	{
-		for (ST_Index y = 0; y < octTreeGrid.yBuckets; y++)
-		{
-			for (ST_Index x = 0; x < octTreeGrid.xBuckets; x++)
-			{
-				ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
-				aabb = octTreeGrid.treeBuckets[i].root->aabb;
-				if (octTreeGrid.treeBuckets[i].root->hasChildren)
-				{
-					drawOctTreeRecursive(*octTreeGrid.treeBuckets[i].root, gVector4ColorRed);
-				}
-			}
-		}
-	}
+	pBoundLightCamera = &Renderer::instance.pointLightCamera;
+	pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
 }
 
 void SceneRender::update(float dt)
 {
 	updateCamera(dt);
-
+	pBoundLightCamera->cameraPos = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
 }
 
 void SceneRender::draw()
 {
-	for (int i = 0; i < renderableColliders.size(); i++)
-	{
-		Renderer::instance.addPrimitiveInstance(renderableColliders[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorBlue, PRIMITIVE_BOX);
-	}
-	addAABB(worldAABB, gVector4ColorGreen);
+	Renderer::instance.drawPrimitive(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
+	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
+}
 
-	ST_AABB aabb;
-	for (ST_Index z = 0; z < octTreeGrid.zBuckets; z++)
-	{
-		for (ST_Index y = 0; y < octTreeGrid.yBuckets; y++)
-		{
-			for (ST_Index x = 0; x < octTreeGrid.xBuckets; x++)
-			{
-				ST_Index i = z * octTreeGrid.xBuckets * octTreeGrid.yBuckets + y * octTreeGrid.xBuckets + x;
-				aabb = octTreeGrid.treeBuckets[i].root->aabb;
-				if (octTreeGrid.treeBuckets[i].root->hasChildren)
-				{
-					drawOctTreeRecursive(*octTreeGrid.treeBuckets[i].root, gVector4ColorRed);
-				}
-			}
-		}
-	}
+void SceneRender::lightDraw()
+{
 
-	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(5000, 5000, 5000), gVector4ColorWhite, PRIMITIVE_PLANE);
+}
+void SceneRender::mainDraw()
+{
+	Renderer::instance.drawPrimitive(pBoundLightCamera->cameraPos, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorRed, 0.7f), PRIMITIVE_SPHERE);
 }
 
 float timeGetRandomFloatBetween0And1()
@@ -250,8 +213,13 @@ void scenePhysicsTest::update(float dt)
 	if (Input::keysDown[VK_SPACE])
 	{
 		started = true;
-		sphereTraceColliderSphereSetPosition(psc, Renderer::instance.mainCamera.cameraPos);
+		ST_Vector3 spawnPos = sphereTraceVector3AddAndScale(Renderer::instance.mainCamera.cameraPos, Renderer::instance.mainCamera.cameraFwd, 2.0f);
+		sphereTraceColliderSphereSetPosition(psc, spawnPos);
 		sphereTraceRigidBodyResetMomentum(&psc->rigidBody);
+	}
+	if (Input::mouse[MOUSE_LEFT])
+	{
+		sphereTraceSimulationRayTrace(&simSpace, Renderer::instance.mainCamera.cameraPos, sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), FLT_MAX, &rtd);
 	}
 }
 
@@ -263,7 +231,7 @@ void scenePhysicsTest::draw()
 	ST_IndexList viewColliders = sphereTraceIndexListConstruct();
 	ST_IndexList leafNodes = sphereTraceIndexListConstruct();
 	sphereTraceOctTreeGridSampleIntersectionLeafsAndCollidersFromPerspective(&simSpace.octTreeGrid, Renderer::instance.mainCamera.cameraPos,
-		sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), sphereTraceDegreesToRadians(120.0f), 200.0f, &leafNodes, &viewColliders);
+		sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), sphereTraceDegreesToRadians(140.0f), 200.0f, &leafNodes, &viewColliders);
 	ColliderModel model;
 	ST_Collider* pCollider;
 	ST_IndexListData* pild = viewColliders.pFirst;
@@ -287,6 +255,8 @@ void scenePhysicsTest::draw()
 	}
 	sphereTraceIndexListFree(&viewColliders);
 	sphereTraceIndexListFree(&leafNodes);
+
+	Renderer::instance.drawPrimitive(rtd.contact.point, gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_SPHERE);
 
 	//for (int i = 0; i < models.size(); i++)
 	//{

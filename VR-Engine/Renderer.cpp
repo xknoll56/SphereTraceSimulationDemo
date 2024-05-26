@@ -507,13 +507,19 @@ void Renderer::LoadAssets()
     directionalLightCamera.projectionMatrix = sphereTraceMatrixOrthographic(-30, 30, 30, -30, -80.0f, 80.0f, 1.0f);
     directionalLightCamera.cameraSetViewMatrix();
     directionalLightCamera.cameraSetRightAndFwdVectors();
+    pointLightCamera = Camera::cameraConstruct(gVector3Zero, M_PI * 0.5f, 0.0f);
+    pointLightCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.45f, 0.1f, 1000.0f);
+    pointLightCamera.cameraSetViewMatrix();
+    pointLightCamera.cameraSetRightAndFwdVectors();
     mainCamera = Camera::cameraConstructDefault();
     mainCamera.cameraSetViewMatrix();
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
-    pScene = new scenePhysicsTest();
+    pScene = new SceneRender();
+    pScene->pTimer = &timer;
     pScene->pBoundCamera = &mainCamera;
+    pScene->pBoundLightCamera = &directionalLightCamera;
     pScene->baseInit();
     pScene->init();
 
@@ -738,19 +744,25 @@ void Renderer::PopulateCommandList()
         // 5. Clear the depth buffer
         m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
+        pScene->pBoundCamera = pScene->pBoundLightCamera;
+
+        // If the bound light camera is the directional light camera, set the position
+        if (pScene->pBoundLightCamera == &directionalLightCamera)
+        {
+            ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
+            directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
+        }
         //Set the pixel shader vertex buffer data and bind it to Register 1
-        ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
-        directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
         Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
-        directionalLightCamera.cameraSetViewMatrix();
-        lightViewProjection = sphereTraceMatrixMult(directionalLightCamera.projectionMatrix, directionalLightCamera.viewMatrix);
+        pScene->pBoundLightCamera->cameraSetViewMatrix();
+        lightViewProjection = sphereTraceMatrixMult(pScene->pBoundLightCamera->projectionMatrix, pScene->pBoundLightCamera->viewMatrix);
 
         // 6. Draw the scene (bind vertex/index buffers, set the root parameters, andsa issue draw calls)
         isShadowPass = true;
-        pScene->pBoundCamera = &directionalLightCamera;
         m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
         pScene->draw();
+        pScene->lightDraw();
         m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
         Renderer::instance.drawAddedPrimitiveInstances();
@@ -796,6 +808,7 @@ void Renderer::PopulateCommandList()
         isShadowPass = false;
         pScene->pBoundCamera = &mainCamera;
         pScene->draw();
+        pScene->mainDraw();
         drawAddedPrimitiveInstances();
         drawAddedWireFrameInstances();
 

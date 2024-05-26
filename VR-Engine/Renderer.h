@@ -107,6 +107,9 @@ public:
 
     Camera mainCamera;
     Camera directionalLightCamera;
+    Camera pointLightCamera;
+
+
     ST_Vector3 dirLightOffset;
     ST_Matrix4 lightViewProjection;
 
