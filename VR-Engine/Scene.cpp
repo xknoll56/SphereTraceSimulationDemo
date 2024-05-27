@@ -106,12 +106,14 @@ void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
 	pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
+	Renderer::instance.overrideLightViewMatrix = true;
 }
 
 void SceneRender::update(float dt)
 {
 	updateCamera(dt);
-	pBoundLightCamera->cameraPos = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
+	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
+	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One);
 }
 
 void SceneRender::draw()

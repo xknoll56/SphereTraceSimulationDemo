@@ -514,7 +514,6 @@ void Renderer::LoadAssets()
     mainCamera = Camera::cameraConstructDefault();
     mainCamera.cameraSetViewMatrix();
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
-    pixelShaderConstantBuffer.lightColor = gVector4ColorWhite;
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
     pScene = new SceneRender();
     pScene->pTimer = &timer;
@@ -751,10 +750,21 @@ void Renderer::PopulateCommandList()
         {
             ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
             directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
+            //Set the pixel shader vertex buffer data and bind it to Register 1
+            pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
+            pScene->pBoundLightCamera->cameraSetViewMatrix();
+        } 
+        else if (pScene->pBoundLightCamera == &pointLightCamera)
+        {
+            // Set the camera positions based on the spotlights position and direction
+            pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLight.position;
+            pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLight.position,
+                sphereTraceVector3Add(pixelShaderConstantBuffer.spotLight.position, pixelShaderConstantBuffer.spotLight.direction), gVector3Up);
         }
-        //Set the pixel shader vertex buffer data and bind it to Register 1
-        Renderer::instance.pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
-        pScene->pBoundLightCamera->cameraSetViewMatrix();
+        
+        pScene->pBoundLightCamera->cameraSetRightAndFwdVectors();
+
+        pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(pScene->pBoundCamera->cameraFwd), 1.0f);
         lightViewProjection = sphereTraceMatrixMult(pScene->pBoundLightCamera->projectionMatrix, pScene->pBoundLightCamera->viewMatrix);
 
         // 6. Draw the scene (bind vertex/index buffers, set the root parameters, andsa issue draw calls)
@@ -765,7 +775,7 @@ void Renderer::PopulateCommandList()
         pScene->lightDraw();
         m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-        Renderer::instance.drawAddedPrimitiveInstances();
+        drawAddedPrimitiveInstances();
 
         // 7. Transition the depth buffer to a readable state (optional)
         transition = CD3DX12_RESOURCE_BARRIER::Transition(
@@ -856,6 +866,18 @@ void Renderer::MoveToNextFrame()
 
     // Set the fence value for the next frame.
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+}
+
+void Renderer::setSpotLight(SpotLight spotLight)
+{
+    pixelShaderConstantBuffer.spotLight = spotLight;
+}
+
+void Renderer::setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color)
+{
+    pixelShaderConstantBuffer.spotLight.position = position;
+    pixelShaderConstantBuffer.spotLight.direction = direction;
+    pixelShaderConstantBuffer.spotLight.color = color;
 }
 
 void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type)

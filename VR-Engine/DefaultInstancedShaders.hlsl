@@ -13,7 +13,6 @@ cbuffer PixelShaderConstants : register(b1)
 {
     float4 cameraPos;
     float4 lightDir;
-    float4 lightColor;
 }
 
 struct PSInput

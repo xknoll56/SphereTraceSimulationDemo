@@ -58,7 +58,7 @@ public:
     VertexBuffer mCylinderVB;
     VertexBuffer mMonkeyVB;
 
-   // Model sponza;
+    // Model sponza;
 
     struct alignas(256) VertexShaderConstantBuffer
     {
@@ -94,11 +94,31 @@ public:
 
     VertexShaderInstancedConstantBufferShadows shadowInstanceBuf;
 
+    struct SpotLight
+    {
+        ST_Vector3 position;
+        ST_Vector3 direction;
+        ST_Vector3 color;
+        float range;
+        float spot;
+        float intensity;
+
+        SpotLight()
+        {
+            position = gVector3Zero;
+            direction = gVector3Down;
+            color = gVector3One;
+            range = 100.0f;
+            spot = 30.0f;
+            intensity = 1.0f;
+        }
+    };
+
     struct alignas(256) PixelShaderConstantBuffer
     {
         ST_Vector4 cameraPos;
         ST_Vector4 lightDir;
-        ST_Vector4 lightColor;
+        SpotLight spotLight;
     };
 
     VertexShaderConstantBuffer m_constantBufferData;
@@ -129,6 +149,9 @@ public:
     std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
 
     bool skipShadowPass = false;
+    bool overrideLightViewMatrix = false;
+    void setSpotLight(SpotLight spotLight);
+    void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color);
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
     // number of frames that will be queued to the GPU at a time, as well as the number
