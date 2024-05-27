@@ -757,9 +757,9 @@ void Renderer::PopulateCommandList()
         else if (pScene->pBoundLightCamera == &pointLightCamera)
         {
             // Set the camera positions based on the spotlights position and direction
-            pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLight.position;
-            pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLight.position,
-                sphereTraceVector3Add(pixelShaderConstantBuffer.spotLight.position, pixelShaderConstantBuffer.spotLight.direction), gVector3Up);
+            pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLights[0].position;
+            pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLights[0].position,
+                sphereTraceVector3Add(pixelShaderConstantBuffer.spotLights[0].position, pixelShaderConstantBuffer.spotLights[0].direction), gVector3Up);
         }
         
         pScene->pBoundLightCamera->cameraSetRightAndFwdVectors();
@@ -868,16 +868,16 @@ void Renderer::MoveToNextFrame()
     m_fenceValues[m_frameIndex] = currentFenceValue + 1;
 }
 
-void Renderer::setSpotLight(SpotLight spotLight)
+void Renderer::setSpotLight(SpotLight spotLight, int spotLightIndex)
 {
-    pixelShaderConstantBuffer.spotLight = spotLight;
+    pixelShaderConstantBuffer.spotLights[spotLightIndex] = spotLight;
 }
 
-void Renderer::setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color)
+void Renderer::setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color, int spotLightIndex)
 {
-    pixelShaderConstantBuffer.spotLight.position = position;
-    pixelShaderConstantBuffer.spotLight.direction = direction;
-    pixelShaderConstantBuffer.spotLight.color = color;
+    pixelShaderConstantBuffer.spotLights[spotLightIndex].position = position;
+    pixelShaderConstantBuffer.spotLights[spotLightIndex].direction = direction;
+    pixelShaderConstantBuffer.spotLights[spotLightIndex].color = color;
 }
 
 void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3 scale, Texture& texture, PrimitiveType type)

@@ -22,7 +22,8 @@ cbuffer PixelShaderConstants : register(b1)
 {
     float4 cameraPos;
     float4 lightDir;
-    SpotLight spotLight;
+    SpotLight spotLights[4];
+    int numSpotLights;
 }
 
 struct PSInput
@@ -88,10 +89,10 @@ float LinearizeDepth(float depth, float near, float far)
 // Phong lighting model function
 float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
 {
-    float dist = length(spotLight.position - input.modelPos.xyz);
-    float attenuation = 1.0 / (1.0f + (0.09f * dist) + (0.032 * 0.032 * dist * dist));
-    float3 viewDir = normalize(spotLight.direction - input.position.xyz);
-    float3 normalizedLightDir = normalize(-spotLight.direction);
+    float dist = length(light.position - input.modelPos.xyz);
+    float attenuation = 1.0 / (1.0f + (0.09f * dist) + (0.128 * 0.128 * dist * dist));
+    float3 viewDir = normalize(light.direction - input.position.xyz);
+    float3 normalizedLightDir = normalize(-light.direction);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir)) * attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
@@ -140,7 +141,16 @@ float4 PSMain(PSInput input) : SV_TARGET
     }
     
     //return computeDirectionalLight(input, shadowFactor) * baseColor;
-    return computeSpotlight(spotLight, input, shadowFactor)*baseColor;
+    float overallLightValue = 0.0f;
+    for (int i = 0; i < numSpotLights; i++)
+    {
+        if(i == 0)
+            overallLightValue += computeSpotlight(spotLights[i], input, shadowFactor);
+        else
+            overallLightValue += computeSpotlight(spotLights[i], input, 1.0f);
+    }
+    overallLightValue = saturate(overallLightValue);
+    return overallLightValue * baseColor;
 
 }
 

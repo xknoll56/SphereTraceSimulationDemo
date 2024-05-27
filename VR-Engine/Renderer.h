@@ -118,7 +118,8 @@ public:
     {
         ST_Vector4 cameraPos;
         ST_Vector4 lightDir;
-        SpotLight spotLight;
+        SpotLight spotLights[4];
+        int numSpotLights;
     };
 
     VertexShaderConstantBuffer m_constantBufferData;
@@ -149,8 +150,8 @@ public:
     std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
 
     bool skipShadowPass = false;
-    void setSpotLight(SpotLight spotLight);
-    void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color);
+    void setSpotLight(SpotLight spotLight, int spotLightIndex);
+    void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color, int spotLightIndex);
 private:
     // In this sample we overload the meaning of FrameCount to mean both the maximum
     // number of frames that will be queued to the GPU at a time, as well as the number

@@ -105,14 +105,19 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
-	pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
+	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 2;
+	//pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
 }
 
 void SceneRender::update(float dt)
 {
 	updateCamera(dt);
+
 	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
-	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One);
+	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One, 0);
+
+	position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds +M_PI)+10, 8, 2.0f * cosf(pTimer->currentTimeInSeconds + M_PI));
+	Renderer::instance.setSpotLight(position, gVector3Down, gVector3One, 1);
 }
 
 void SceneRender::draw()
@@ -127,7 +132,8 @@ void SceneRender::lightDraw()
 }
 void SceneRender::mainDraw()
 {
-	Renderer::instance.drawPrimitive(pBoundLightCamera->cameraPos, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorRed, 0.7f), PRIMITIVE_SPHERE);
+	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[0].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorRed, 0.7f), PRIMITIVE_SPHERE);
+	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[1].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorBlue, 0.7f), PRIMITIVE_SPHERE);
 }
 
 float timeGetRandomFloatBetween0And1()
