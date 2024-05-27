@@ -97,10 +97,10 @@ public:
     struct SpotLight
     {
         ST_Vector3 position;
-        ST_Vector3 direction;
-        ST_Vector3 color;
         float range;
+        ST_Vector3 direction;
         float spot;
+        ST_Vector3 color;
         float intensity;
 
         SpotLight()
