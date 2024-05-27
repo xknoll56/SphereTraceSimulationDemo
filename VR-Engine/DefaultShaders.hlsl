@@ -86,32 +86,33 @@ float LinearizeDepth(float depth, float near, float far)
 }
 
 // Phong lighting model function
-float computeSpotlight(SpotLight light, float3 modelPos, float4 fragPos, float3 normal, float shadowFactor)
+float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
 {
-    float dist = length(spotLight.position - modelPos);
+    float dist = length(spotLight.position - input.modelPos.xyz);
     float attenuation = 1.0 / (1.0f + (0.09f * dist) + (0.032 * 0.032 * dist * dist));
-    float3 viewDir = normalize(spotLight.direction - fragPos.xyz);
+    float3 viewDir = normalize(spotLight.direction - input.position.xyz);
     float3 normalizedLightDir = normalize(-spotLight.direction);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
-    float diffuse = max(0.0f, dot(normal, normalizedLightDir)) * attenuation;
-    float specular = pow(max(0.0f, dot(normal, halfVec)), 32) * attenuation;
+    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir)) * attenuation;
+    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
+    float ambient = 0.3f;
+    return (diffuse * shadowFactor + ambient + specular * shadowFactor);
+}
+
+float computeDirectionalLight(PSInput input, float shadowFactor)
+{
+    float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
+    float3 normalizedLightDir = normalize(lightDir.xyz);
+    float3 halfVec = normalize(normalizedLightDir + viewDir);
+    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
+    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); 
     float ambient = 0.3f;
     return (diffuse * shadowFactor + ambient + specular * shadowFactor);
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    //float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
-    //float3 normalizedLightDir = normalize(lightDir.xyz);
-    //float3 halfVec = normalize(normalizedLightDir + viewDir);
-    //float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
-    //float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
-    
-
-    
     float4 baseColor = lerp(g_texture.Sample(g_sampler, input.uv), input.color, input.colorMix);
-  
-
     
     float epsilon = 0.005;
     
@@ -138,10 +139,8 @@ float4 PSMain(PSInput input) : SV_TARGET
         shadowFactor = 1.0f;
     }
     
-    //float4 lighting = (diffuse * shadowFactor  + ambient + specular * shadowFactor )  * baseColor;
-
-   // float4 lighting = shadowFactor * baseColor * spotLightStrength;
-    return computeSpotlight(spotLight, input.modelPos, input.position, input.normal, shadowFactor)*baseColor;
+    //return computeDirectionalLight(input, shadowFactor) * baseColor;
+    return computeSpotlight(spotLight, input, shadowFactor)*baseColor;
 
 }
 

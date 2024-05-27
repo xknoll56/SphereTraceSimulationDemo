@@ -106,7 +106,6 @@ void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
 	pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
-	Renderer::instance.overrideLightViewMatrix = true;
 }
 
 void SceneRender::update(float dt)

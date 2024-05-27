@@ -149,7 +149,6 @@ public:
     std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
 
     bool skipShadowPass = false;
-    bool overrideLightViewMatrix = false;
     void setSpotLight(SpotLight spotLight);
     void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color);
 private:
