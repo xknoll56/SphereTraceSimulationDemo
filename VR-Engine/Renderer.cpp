@@ -470,7 +470,8 @@ void Renderer::LoadAssets()
 
         m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-
+        shadowMap.init(m_device.Get(), m_dsvHeap.Get(), dhp, 1024, 1024);
+       /*
         resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, shadowMapWidth, shadowMapHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
         ThrowIfFailed(m_device->CreateCommittedResource(
             &heapProps,
@@ -498,7 +499,7 @@ void Renderer::LoadAssets()
 
         shadowSrvCpuHandle = dhp.getCpuHandle(m_device.Get());
         m_device->CreateShaderResourceView(shadowDepthBuffer.Get(), &srvDesc, shadowSrvCpuHandle);
-        shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);
+        shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);*/
     }
 
 
@@ -586,112 +587,112 @@ void Renderer::OnDestroy()
 inline size_t Align(size_t value, size_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 };
-
-void Renderer::writeShadowDepthBufferToDDS()
-{
-    if (Input::keysDown[VK_SPACE])
-    {
-        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
-
-        // 1. Transition the depth buffer to the copy source state
-        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Change to the state where it's expected to contain valid depth data
-            D3D12_RESOURCE_STATE_COPY_SOURCE
-        );
-
-        m_commandList->ResourceBarrier(1, &transition);
-
-        // 2. Create an upload heap to read back the data
-        ComPtr<ID3D12Resource> readbackBuffer;
-        CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
-        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(Align(shadowMapWidth * shadowMapHeight * sizeof(float), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT));
-        m_device->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc, // Assuming float depth values
-            D3D12_RESOURCE_STATE_COPY_DEST,
-            nullptr,
-            IID_PPV_ARGS(&readbackBuffer)
-        );
-
-        // 3. Define the source texture copy location
-        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
-        srcLocation.pResource = shadowDepthBuffer.Get();
-        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        srcLocation.SubresourceIndex = 0;
-
-        // 4. Define the destination buffer copy location
-        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-        footprint.Offset = 0;
-        footprint.Footprint.Format = DXGI_FORMAT_D32_FLOAT;
-        footprint.Footprint.Width = shadowMapWidth;
-        footprint.Footprint.Height = shadowMapHeight;
-        footprint.Footprint.Depth = 1;
-        footprint.Footprint.RowPitch = Align(shadowMapWidth * sizeof(float), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-
-        D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
-        dstLocation.pResource = readbackBuffer.Get();
-        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-        dstLocation.PlacedFootprint = footprint;
-
-        // 5. Copy the depth buffer contents to the readback buffer
-        CD3DX12_BOX srcBox(0, 0, 0, shadowMapWidth, shadowMapHeight, 1);
-        m_commandList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &srcBox);
-
-        // 6. Transition the depth buffer back to its original state
-        transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_COPY_SOURCE,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE // Change back to the original state after copying
-        );
-
-        m_commandList->ResourceBarrier(1, &transition);
-
-        // 7. Close the command list and execute it
-        m_commandList->Close();
-        ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
-
-        // 8. Wait for the GPU to finish executing the command list
-        WaitForGpu();
-
-        // 9. Read back the depth buffer contents from the readback buffer
-        float* pDepthBuffer = nullptr;
-        CD3DX12_RANGE readRange(0, shadowMapWidth * shadowMapHeight * sizeof(float)); // Assuming float depth values
-        ThrowIfFailed(readbackBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pDepthBuffer)));
-
-        // Now pDepthBuffer contains the depth buffer data
-        // Use pDepthBuffer as needed
-
-        int width = shadowMapWidth;  // example width
-        int height = shadowMapHeight; // example height
-
-        // Create an example image: a gradient from black to white
-        std::vector<unsigned char> image(width * height * 3);
-
-        for (int y = 0; y < shadowMapHeight; ++y) {
-            for (int x = 0; x < shadowMapWidth; ++x) {
-                // Access depth value at (x, y)
-                float depthValue = pDepthBuffer[y * (footprint.Footprint.RowPitch / sizeof(float)) + x];
-                // Use depthValue as needed
-                //printf("value: %f\n", depthValue);
-                int offset = (y * width + x) * 3;
-                image[offset] = static_cast<unsigned char>(depthValue * 255);  // R
-                image[offset + 1] = 0;  // G
-                image[offset + 2] = 0;  // B
-            }
-        }
-
-        Texture::writeBMP("output.bmp", image.data(), width, height);
-
-        // 10. Unmap the readback buffer
-        readbackBuffer->Unmap(0, nullptr);
-
-        exit(0);
-    }
-
-}
+//
+//void Renderer::writeShadowDepthBufferToDDS()
+//{
+//    if (Input::keysDown[VK_SPACE])
+//    {
+//        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
+//
+//        // 1. Transition the depth buffer to the copy source state
+//        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+//            shadowDepthBuffer.Get(),
+//            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, // Change to the state where it's expected to contain valid depth data
+//            D3D12_RESOURCE_STATE_COPY_SOURCE
+//        );
+//
+//        m_commandList->ResourceBarrier(1, &transition);
+//
+//        // 2. Create an upload heap to read back the data
+//        ComPtr<ID3D12Resource> readbackBuffer;
+//        CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+//        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(Align(shadowMapWidth * shadowMapHeight * sizeof(float), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT));
+//        m_device->CreateCommittedResource(
+//            &heapProps,
+//            D3D12_HEAP_FLAG_NONE,
+//            &resourceDesc, // Assuming float depth values
+//            D3D12_RESOURCE_STATE_COPY_DEST,
+//            nullptr,
+//            IID_PPV_ARGS(&readbackBuffer)
+//        );
+//
+//        // 3. Define the source texture copy location
+//        D3D12_TEXTURE_COPY_LOCATION srcLocation = {};
+//        srcLocation.pResource = shadowDepthBuffer.Get();
+//        srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+//        srcLocation.SubresourceIndex = 0;
+//
+//        // 4. Define the destination buffer copy location
+//        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+//        footprint.Offset = 0;
+//        footprint.Footprint.Format = DXGI_FORMAT_D32_FLOAT;
+//        footprint.Footprint.Width = shadowMapWidth;
+//        footprint.Footprint.Height = shadowMapHeight;
+//        footprint.Footprint.Depth = 1;
+//        footprint.Footprint.RowPitch = Align(shadowMapWidth * sizeof(float), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+//
+//        D3D12_TEXTURE_COPY_LOCATION dstLocation = {};
+//        dstLocation.pResource = readbackBuffer.Get();
+//        dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+//        dstLocation.PlacedFootprint = footprint;
+//
+//        // 5. Copy the depth buffer contents to the readback buffer
+//        CD3DX12_BOX srcBox(0, 0, 0, shadowMapWidth, shadowMapHeight, 1);
+//        m_commandList->CopyTextureRegion(&dstLocation, 0, 0, 0, &srcLocation, &srcBox);
+//
+//        // 6. Transition the depth buffer back to its original state
+//        transition = CD3DX12_RESOURCE_BARRIER::Transition(
+//            shadowDepthBuffer.Get(),
+//            D3D12_RESOURCE_STATE_COPY_SOURCE,
+//            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE // Change back to the original state after copying
+//        );
+//
+//        m_commandList->ResourceBarrier(1, &transition);
+//
+//        // 7. Close the command list and execute it
+//        m_commandList->Close();
+//        ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
+//        m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+//
+//        // 8. Wait for the GPU to finish executing the command list
+//        WaitForGpu();
+//
+//        // 9. Read back the depth buffer contents from the readback buffer
+//        float* pDepthBuffer = nullptr;
+//        CD3DX12_RANGE readRange(0, shadowMapWidth * shadowMapHeight * sizeof(float)); // Assuming float depth values
+//        ThrowIfFailed(readbackBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pDepthBuffer)));
+//
+//        // Now pDepthBuffer contains the depth buffer data
+//        // Use pDepthBuffer as needed
+//
+//        int width = shadowMapWidth;  // example width
+//        int height = shadowMapHeight; // example height
+//
+//        // Create an example image: a gradient from black to white
+//        std::vector<unsigned char> image(width * height * 3);
+//
+//        for (int y = 0; y < shadowMapHeight; ++y) {
+//            for (int x = 0; x < shadowMapWidth; ++x) {
+//                // Access depth value at (x, y)
+//                float depthValue = pDepthBuffer[y * (footprint.Footprint.RowPitch / sizeof(float)) + x];
+//                // Use depthValue as needed
+//                //printf("value: %f\n", depthValue);
+//                int offset = (y * width + x) * 3;
+//                image[offset] = static_cast<unsigned char>(depthValue * 255);  // R
+//                image[offset + 1] = 0;  // G
+//                image[offset + 2] = 0;  // B
+//            }
+//        }
+//
+//        Texture::writeBMP("output.bmp", image.data(), width, height);
+//
+//        // 10. Unmap the readback buffer
+//        readbackBuffer->Unmap(0, nullptr);
+//
+//        exit(0);
+//    }
+//
+//}
 
 void Renderer::PopulateCommandList()
 {
@@ -719,7 +720,7 @@ void Renderer::PopulateCommandList()
     {
         // 1. Transition the depth buffer to the depth write state
         CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
+            shadowMap.shadowDepthBuffer.Get(),
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
             D3D12_RESOURCE_STATE_DEPTH_WRITE
         );
@@ -730,18 +731,15 @@ void Renderer::PopulateCommandList()
        
 
         // 3. Set the viewport and scissor rect
-        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMapWidth), static_cast<float>(shadowMapHeight), 0.0f, 1.0f };
-        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMapWidth), static_cast<LONG>(shadowMapHeight) };
+        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMap.mapWidth), static_cast<float>(shadowMap.mapHeight), 0.0f, 1.0f };
+        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMap.mapWidth), static_cast<LONG>(shadowMap.mapHeight) };
         m_commandList->RSSetViewports(1, &viewport);
         m_commandList->RSSetScissorRects(1, &scissorRect);
 
-        // 4. Set the depth stencil view
-        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &handle);
+        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &shadowMap.dsvHandle);
 
         // 5. Clear the depth buffer
-        m_commandList->ClearDepthStencilView(handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        m_commandList->ClearDepthStencilView(shadowMap.dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
         pScene->pBoundCamera = pScene->pBoundLightCamera;
 
@@ -779,7 +777,7 @@ void Renderer::PopulateCommandList()
 
         // 7. Transition the depth buffer to a readable state (optional)
         transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowDepthBuffer.Get(),
+            shadowMap.shadowDepthBuffer.Get(),
             D3D12_RESOURCE_STATE_DEPTH_WRITE,
             D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
         );
@@ -898,7 +896,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -938,7 +936,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -977,7 +975,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1016,7 +1014,7 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1041,7 +1039,7 @@ void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1287,7 +1285,7 @@ void Renderer::drawAddedPrimitiveInstances()
                 perPrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
                 pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
                 pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
-                m_commandList->SetGraphicsRootDescriptorTable(2, shadowSrvGpuHandle);
+                m_commandList->SetGraphicsRootDescriptorTable(2, shadowMap.shadowSrvGpuHandle);
 
                 UINT numInstance = j < numStacks - 1 ? 400 : perPrimitiveInstanceBufferCounts[type] % 400;
                 switch (type)

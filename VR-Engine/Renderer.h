@@ -33,6 +33,60 @@ using Microsoft::WRL::ComPtr;
 #include "Input.h"
 #include "Scene.h"
 
+struct ShadowMap
+{
+    UINT mapWidth;
+    UINT mapHeight;
+    ComPtr<ID3D12Resource> shadowDepthBuffer;
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
+    D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpuHandle;
+
+    void init(ID3D12Device* pDevice, ID3D12DescriptorHeap* pDsvHeap, DescriptorHandleProvider& dhp, UINT mapWidth, UINT mapHeight)
+    {
+        this->mapWidth = mapWidth;
+        this->mapHeight = mapHeight;
+        D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilDesc = {};
+        depthStencilDesc.Format = DXGI_FORMAT_D32_FLOAT;
+        depthStencilDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        depthStencilDesc.Flags = D3D12_DSV_FLAG_NONE;
+
+        D3D12_CLEAR_VALUE depthOptimizedClearValue = {};
+        depthOptimizedClearValue.Format = DXGI_FORMAT_D32_FLOAT;
+        depthOptimizedClearValue.DepthStencil.Depth = 1.0f;
+        depthOptimizedClearValue.DepthStencil.Stencil = 0;
+
+        CD3DX12_HEAP_PROPERTIES heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, mapWidth, mapHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+        ThrowIfFailed(pDevice->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+            &depthOptimizedClearValue,
+            IID_PPV_ARGS(&shadowDepthBuffer)
+        ));
+
+
+
+        dsvHandle = pDsvHeap->GetCPUDescriptorHandleForHeapStart();
+        dsvHandle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        pDevice->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, dsvHandle);
+
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+        D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpuHandle = dhp.getCpuHandle(pDevice);
+        pDevice->CreateShaderResourceView(shadowDepthBuffer.Get(), &srvDesc, shadowSrvCpuHandle);
+        shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);
+    }
+};
+
 
 class Renderer : public DXSample
 {
@@ -200,13 +254,12 @@ private:
     //ComPtr<ID3D12Resource> m_constantBuffer;
     //UINT8* m_pCbvDataBegin;
 
-    
+
+
+    ShadowMap shadowMap;
+
+
     ComPtr<ID3D12Resource> m_depthStencil;
-    ComPtr<ID3D12Resource> shadowDepthBuffer;
-    const UINT shadowMapWidth = 1024;
-    const UINT shadowMapHeight = 1024;
-    D3D12_CPU_DESCRIPTOR_HANDLE shadowSrvCpuHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpuHandle;
     bool isShadowPass = false;
 
     //ConstantBufferAccessor mConstantBufferAccessors[500];

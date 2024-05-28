@@ -116,13 +116,14 @@ void SceneRender::update(float dt)
 	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
 	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One, 0);
 
-	position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds +M_PI)+10, 8, 2.0f * cosf(pTimer->currentTimeInSeconds + M_PI));
-	Renderer::instance.setSpotLight(position, gVector3Down, gVector3One, 1);
+	position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds +M_PI)+15, 8, 2.0f * cosf(pTimer->currentTimeInSeconds + M_PI));
+	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(15, 3, 0), position)), gVector3One, 1);
 }
 
 void SceneRender::draw()
 {
 	Renderer::instance.drawPrimitive(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
+	Renderer::instance.drawPrimitive(ST_VECTOR3(15,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
 	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 
