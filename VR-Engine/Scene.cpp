@@ -58,6 +58,16 @@ void Scene::baseInit()
 	 }
 }
 
+void Scene::lightDraw()
+{
+
+}
+
+void Scene::mainDraw()
+{
+
+}
+
 void Scene::addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree)
 {
 	sphereTraceOctTreeGridInsertCollider(&octTreeGrid, &collider, restructureTree);
@@ -122,9 +132,9 @@ void SceneRender::update(float dt)
 
 void SceneRender::draw()
 {
-	Renderer::instance.drawPrimitive(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-	Renderer::instance.drawPrimitive(ST_VECTOR3(15,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
-	Renderer::instance.drawPrimitive(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
+	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
+	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(15,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
+	Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 
 void SceneRender::lightDraw()
@@ -231,8 +241,7 @@ void scenePhysicsTest::update(float dt)
 	}
 }
 
-
-void scenePhysicsTest::draw()
+void scenePhysicsTest::mainDraw()
 {
 	addAABB(simSpace.worldAABB, gVector4ColorGreen);
 
@@ -265,6 +274,12 @@ void scenePhysicsTest::draw()
 	sphereTraceIndexListFree(&leafNodes);
 
 	Renderer::instance.drawPrimitive(rtd.contact.point, gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_SPHERE);
+}
+
+
+void scenePhysicsTest::draw()
+{
+
 
 	//for (int i = 0; i < models.size(); i++)
 	//{

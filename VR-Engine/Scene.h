@@ -30,9 +30,9 @@ public:
     // Called once per frame
     virtual void update(float dt) = 0;
     // Called once from light camera
-    virtual void lightDraw() = 0;
+    virtual void lightDraw();
     // Called once from main camera 
-    virtual void mainDraw() = 0;
+    virtual void mainDraw();
     void baseInit();
 protected:
     void addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree);
@@ -76,4 +76,5 @@ struct scenePhysicsTest : Scene
     void update(float dt) override;
     void draw() override;
     void init() override;
+    void mainDraw() override;
 };

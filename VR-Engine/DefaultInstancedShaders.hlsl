@@ -9,10 +9,22 @@ cbuffer VertexShaderConstants : register(b0)
     
 };
 
+struct SpotLight
+{
+    float3 position;
+    float range;
+    float3 direction;
+    float spot;
+    float3 color;
+    float intentsity;
+};
+
 cbuffer PixelShaderConstants : register(b1)
 {
     float4 cameraPos;
     float4 lightDir;
+    SpotLight spotLights[4];
+    int numSpotLights;
 }
 
 struct PSInput
@@ -20,7 +32,8 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float4 color : COLOR;
-    float4 lightSpacePos : TEXCOORD;
+    float4 lightSpacePos : TEXCOORD1;
+    float4 modelPos : TEXCOORD2;
 };
 
 float3x3 extractRot(float4x4 model)
@@ -52,30 +65,47 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.position = mul(float4(position, 1.0f), mvp);
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
     result.color = colors[instanceID];
-    float4 modelPos = mul(float4(position, 1.0f), model[instanceID]);
-    result.lightSpacePos = mul(modelPos, lightViewProj);
+    result.modelPos = mul(float4(position, 1.0f), model[instanceID]);
+    result.lightSpacePos = mul(result.modelPos, lightViewProj);
     return result;
 }
 
 Texture2D<float> shadowTexture : register(t0);
 SamplerComparisonState shadowSampler : register(s0);
 
+// Phong lighting model function
+float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
+{
+    float dist = length(light.position - input.modelPos.xyz);
+    float attenuation = 1.0 / (1.0f + (0.09f * dist) + (0.128 * 0.128 * dist * dist));
+    float3 viewDir = normalize(light.direction - input.position.xyz);
+    float3 normalizedLightDir = normalize(-light.direction);
+    float3 halfVec = normalize(normalizedLightDir + viewDir);
+    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir)) * attenuation;
+    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
+    float ambient = 0.3f;
+    return (diffuse * shadowFactor + ambient + specular * shadowFactor);
+}
 
-float4 PSMain(PSInput input) : SV_TARGET
+float computeDirectionalLight(PSInput input, float shadowFactor)
 {
     float3 viewDir = normalize(cameraPos.xyz - input.position.xyz);
     float3 normalizedLightDir = normalize(lightDir.xyz);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
-    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32); // Adjust the specular power as needed
-    float4 baseColor = input.color;
-    float alpha = baseColor.w;
+    float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32);
     float ambient = 0.3f;
-    //return baseColor * (diffuse + ambient + specular);
+    return (diffuse * shadowFactor + ambient + specular * shadowFactor);
+}
+
+
+float4 PSMain(PSInput input) : SV_TARGET
+{
+
+    float3 baseColor = input.color.xyz;
+    float alpha = input.color.w;
     
-
-    float epsilon = 0.05;
-
+    float epsilon = 0.005;
     
     uint width;
     uint height;
@@ -100,7 +130,16 @@ float4 PSMain(PSInput input) : SV_TARGET
         shadowFactor = 1.0f;
     }
     
-    float4 lighting = (diffuse * shadowFactor + ambient + specular * shadowFactor) * baseColor;
-    return float4(lighting.xyz, alpha);
+    //return computeDirectionalLight(input, shadowFactor) * baseColor;
+    float overallLightValue = 0.0f;
+    for (int i = 0; i < numSpotLights; i++)
+    {
+        if (i == 0)
+            overallLightValue += computeSpotlight(spotLights[i], input, shadowFactor);
+        else
+            overallLightValue += computeSpotlight(spotLights[i], input, 1.0f);
+    }
+    overallLightValue = saturate(overallLightValue);
+    return float4(overallLightValue * baseColor, alpha);
 
 }

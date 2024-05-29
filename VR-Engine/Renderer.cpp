@@ -517,6 +517,7 @@ void Renderer::LoadAssets()
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
     pScene = new SceneRender();
+    //pScene = new scenePhysicsTest();
     pScene->pTimer = &timer;
     pScene->pBoundCamera = &mainCamera;
     pScene->pBoundLightCamera = &directionalLightCamera;
