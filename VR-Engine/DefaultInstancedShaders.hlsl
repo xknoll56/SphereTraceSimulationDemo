@@ -25,6 +25,7 @@ cbuffer PixelShaderConstants : register(b1)
     float4 lightDir;
     SpotLight spotLights[4];
     int numSpotLights;
+    int numShadowTextures;
 }
 
 struct PSInput
@@ -32,8 +33,7 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float4 color : COLOR;
-    float4 lightSpacePos : TEXCOORD;
-    float4 lightSpacePos1 : TEXCOORD1;
+    float4 lightSpacePos[2] : TEXCOORD;
     float4 modelPos : TEXCOORD2;
 };
 
@@ -67,12 +67,13 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
     result.color = colors[instanceID];
     result.modelPos = mul(float4(position, 1.0f), model[instanceID]);
-    result.lightSpacePos = mul(result.modelPos, lightViewProjs[0]);
-    result.lightSpacePos1 = mul(result.modelPos, lightViewProjs[1]);
+    result.lightSpacePos[0] = mul(result.modelPos, lightViewProjs[0]);
+    result.lightSpacePos[1] = mul(result.modelPos, lightViewProjs[1]);
     return result;
 }
 
 Texture2D<float> shadowTexture : register(t0);
+Texture2D<float> shadowTexture1 : register(t1);
 SamplerComparisonState shadowSampler : register(s0);
 
 // Phong lighting model function
@@ -100,6 +101,29 @@ float computeDirectionalLight(PSInput input, float shadowFactor)
     return (diffuse * shadowFactor + ambient + specular * shadowFactor);
 }
 
+float calculateShadowFactor(float4 lightSpacePos, Texture2D<float> shadowText, float epsilon)
+{
+    float2 shadowTexCoords;
+    shadowTexCoords.x = 0.5f + (lightSpacePos.x / lightSpacePos.w * 0.5f);
+    shadowTexCoords.y = 0.5f - (lightSpacePos.y / lightSpacePos.w * 0.5);
+
+    float pixelDepth = lightSpacePos.z / lightSpacePos.w;
+    
+
+    float shadowFactor = 0.0f;
+    if ((saturate(shadowTexCoords.x) == shadowTexCoords.x) &&
+			(saturate(shadowTexCoords.y) == shadowTexCoords.y) &&
+			(pixelDepth < 1.0f))
+    {
+        shadowFactor = shadowText.SampleCmpLevelZero(shadowSampler, shadowTexCoords, pixelDepth - epsilon);
+    }
+    else
+    {
+        shadowFactor = 1.0f;
+    }
+    return shadowFactor;
+}
+
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
@@ -109,38 +133,27 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     float epsilon = 0.005;
     
-    uint width;
-    uint height;
-    shadowTexture.GetDimensions(width, height);
+    float shadowFactor = calculateShadowFactor(input.lightSpacePos[0], shadowTexture, epsilon);
+    float overallLightValue = computeSpotlight(spotLights[0], input, shadowFactor);
     
-    float2 shadowTexCoords;
-    shadowTexCoords.x = 0.5f + (input.lightSpacePos.x / input.lightSpacePos.w * 0.5f);
-    shadowTexCoords.y = 0.5f - (input.lightSpacePos.y / input.lightSpacePos.w * 0.5);
-
-    float pixelDepth = input.lightSpacePos.z / input.lightSpacePos.w;
-    
-
-    float shadowFactor = 0.0f;
-    if ((saturate(shadowTexCoords.x) == shadowTexCoords.x) &&
-			(saturate(shadowTexCoords.y) == shadowTexCoords.y) &&
-			(pixelDepth < 1.0f))
+    if(numShadowTextures>1)
     {
-        shadowFactor = shadowTexture.SampleCmpLevelZero(shadowSampler, shadowTexCoords, pixelDepth - epsilon);
+        shadowFactor = calculateShadowFactor(input.lightSpacePos[1], shadowTexture1, epsilon);
     }
     else
     {
         shadowFactor = 1.0f;
     }
     
-    //return computeDirectionalLight(input, shadowFactor) * baseColor;
-    float overallLightValue = 0.0f;
-    for (int i = 0; i < numSpotLights; i++)
-    {
-        if (i == 0)
-            overallLightValue += computeSpotlight(spotLights[i], input, shadowFactor);
-        else
-            overallLightValue += computeSpotlight(spotLights[i], input, 1.0f);
-    }
+    
+    if(numSpotLights>1)
+        overallLightValue += computeSpotlight(spotLights[1], input, shadowFactor);
+    
+    
+    for (int i = 2; i < numSpotLights; i++)
+        overallLightValue += computeSpotlight(spotLights[i], input, 1.0f);
+    
+    
     overallLightValue = saturate(overallLightValue);
     return float4(overallLightValue * baseColor, alpha);
 

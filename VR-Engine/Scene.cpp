@@ -115,25 +115,29 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
-	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 2;
-	Renderer::instance.numShadowPasses = 2;
+	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 1;
+	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 2;
 }
 
 void SceneRender::update(float dt)
 {
 	updateCamera(dt);
+	if (Input::keys[VK_SPACE])
+	{
+		period += dt;
+	}
 
-	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds), 8, 2.0f * cosf(pTimer->currentTimeInSeconds));
+	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(period), 8, 2.0f * cosf(period));
 	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One, 0);
 
-	position = ST_VECTOR3(2.0f * sinf(pTimer->currentTimeInSeconds +M_PI)+15, 8, 2.0f * cosf(pTimer->currentTimeInSeconds + M_PI));
-	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(15, 3, 0), position)), gVector3One, 1);
+	position = ST_VECTOR3(2.0f * sinf(period +M_PI)+8, 8, 2.0f * cosf(period + M_PI));
+	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(8, 3, 0), position)), gVector3One, 1);
 }
 
 void SceneRender::draw()
 {
 	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(15,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
+	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(8,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
 	Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 

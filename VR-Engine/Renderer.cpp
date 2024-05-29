@@ -485,13 +485,14 @@ void Renderer::LoadAssets()
     directionalLightCamera.cameraSetViewMatrix();
     directionalLightCamera.cameraSetRightAndFwdVectors();
     pointLightCamera = Camera::cameraConstruct(gVector3Zero, M_PI * 0.5f, 0.0f);
-    pointLightCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.45f, 0.1f, 1000.0f);
+    pointLightCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.35f, 0.1f, 1000.0f);
     pointLightCamera.cameraSetViewMatrix();
     pointLightCamera.cameraSetRightAndFwdVectors();
     mainCamera = Camera::cameraConstructDefault();
     mainCamera.cameraSetViewMatrix();
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
+    pixelShaderConstantBuffer.numShadowTextures = 1;
     pScene = new SceneRender();
     //pScene = new scenePhysicsTest();
     pScene->pTimer = &timer;
@@ -755,7 +756,7 @@ void Renderer::PopulateCommandList()
     if(!skipShadowPass)
     {
         isShadowPass = true;
-        for(int i = 0;i<numShadowPasses; i++)
+        for(int i = 0;i< pixelShaderConstantBuffer.numShadowTextures; i++)
             ShadowRenderPass(shadowMaps[i], i);
     }
     //writeShadowDepthBufferToDDS();
@@ -1253,12 +1254,14 @@ void Renderer::drawAddedPrimitiveInstances()
             for (int j = 0; j < numStacks; j++)
             {
                 perPrimitiveInstanceBuffers[type][j].lightViewProjs[0] = lightViewProjections[0];
+                perPrimitiveInstanceBuffers[type][j].lightViewProjs[1] = lightViewProjections[1];
                 perPrimitiveInstanceBuffers[type][j].viewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, pScene->pBoundCamera->viewMatrix);
                 perPrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perPrimitiveInstanceBuffers[type][j]);
                 perPrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
                 pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
                 pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
                 m_commandList->SetGraphicsRootDescriptorTable(2, shadowMaps[0].shadowSrvGpuHandle);
+                m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
 
                 UINT numInstance = j < numStacks - 1 ? 400 : perPrimitiveInstanceBufferCounts[type] % 400;
                 switch (type)

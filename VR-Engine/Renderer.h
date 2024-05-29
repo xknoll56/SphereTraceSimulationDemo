@@ -175,6 +175,7 @@ public:
         ST_Vector4 lightDir;
         SpotLight spotLights[4];
         int numSpotLights;
+        int numShadowTextures;
     };
 
     VertexShaderConstantBuffer m_constantBufferData;
@@ -207,7 +208,6 @@ public:
     bool skipShadowPass = false;
     void setSpotLight(SpotLight spotLight, int spotLightIndex);
     void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color, int spotLightIndex);
-    UINT numShadowPasses = 1;
 private:
 
     static const UINT FrameCount = 3;

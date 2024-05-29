@@ -59,6 +59,7 @@ struct SceneRender : Scene
     void mainDraw() override;
 
     std::vector<ST_Collider*> renderableColliders;
+    float period = 0.0f;
 };
 
 struct ColliderModel
