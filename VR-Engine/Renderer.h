@@ -40,6 +40,7 @@ struct ShadowMap
     ComPtr<ID3D12Resource> shadowDepthBuffer;
     D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE shadowSrvGpuHandle;
+    static int numShadows;
 
     void init(ID3D12Device* pDevice, ID3D12DescriptorHeap* pDsvHeap, DescriptorHandleProvider& dhp, UINT mapWidth, UINT mapHeight)
     {
@@ -69,7 +70,7 @@ struct ShadowMap
 
 
         dsvHandle = pDsvHeap->GetCPUDescriptorHandleForHeapStart();
-        dsvHandle.ptr += pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+        dsvHandle.ptr += (numShadows++)*pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         pDevice->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, dsvHandle);
 
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -134,7 +135,7 @@ public:
     struct alignas(256) WireFrameInstancedConstantBuffer
     {
         ST_Matrix4 viewProjection;
-        ST_Matrix4 lightViewProj;
+        ST_Matrix4 lightViewProjs[2];
         ST_Matrix4 model[400];
         ST_Vector4 colors[400];
     };
@@ -186,7 +187,7 @@ public:
 
 
     ST_Vector3 dirLightOffset;
-    ST_Matrix4 lightViewProjection;
+    ST_Matrix4 lightViewProjections[2];
 
     UINT perPrimitiveInstanceBufferCounts[4] = { 0,0,0,0 };
     UINT perPrimitiveInstanceBufferCapacities[4] = { 400,400,400,400 };
@@ -206,25 +207,14 @@ public:
     bool skipShadowPass = false;
     void setSpotLight(SpotLight spotLight, int spotLightIndex);
     void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color, int spotLightIndex);
+    UINT numShadowPasses = 1;
 private:
-    // In this sample we overload the meaning of FrameCount to mean both the maximum
-    // number of frames that will be queued to the GPU at a time, as well as the number
-    // of back buffers in the DXGI swap chain. For the majority of applications, this
-    // is convenient and works well. However, there will be certain cases where an
-    // application may want to queue up more frames than there are back buffers
-    // available.
-    // It should be noted that excessive buffering of frames dependent on user input
-    // may result in noticeable latency in your app.
+
     static const UINT FrameCount = 3;
     static const UINT TextureWidth = 256;
     static const UINT TextureHeight = 256;
-    static const UINT TexturePixelSize = 4;    // The number of bytes used to represent a pixel in the texture.
+    static const UINT TexturePixelSize = 4;    
 
-
-    //ST_Matrix4 mvp;
-
-
-   // static_assert((sizeof(VertexShaderConstantBuffer) % 256) == 0, "Constant Buffer size must be 256-byte aligned");
 
     // Pipeline objects.
     CD3DX12_VIEWPORT m_viewport;
@@ -256,7 +246,8 @@ private:
 
 
 
-    ShadowMap shadowMap;
+    ShadowMap shadowMaps[2];
+    
 
 
     ComPtr<ID3D12Resource> m_depthStencil;
@@ -279,6 +270,7 @@ private:
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();
+    void ShadowRenderPass(const ShadowMap& map, int pass);
     void MoveToNextFrame();
     void WaitForGpu();
     void writeShadowDepthBufferToDDS();

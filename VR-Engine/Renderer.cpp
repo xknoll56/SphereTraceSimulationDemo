@@ -13,6 +13,7 @@
 #include "Renderer.h"
 
 Renderer Renderer::instance(1280, 720, L"D3D12");
+int ShadowMap::numShadows = 1;
 extern HWND hwnd;
 
 Renderer::Renderer(UINT width, UINT height, std::wstring name) :
@@ -140,7 +141,7 @@ void Renderer::LoadPipeline()
         // Step 1: Define Descriptor Heap Parameters
         D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
         dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV; // Type of descriptors (Depth Stencil Views)
-        dsvHeapDesc.NumDescriptors = 2; // Number of descriptors (usually one for depth buffer)
+        dsvHeapDesc.NumDescriptors = 3; // Number of descriptors (usually one for depth buffer)
         dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // No special flags needed
         ThrowIfFailed(m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap)));
 
@@ -255,15 +256,17 @@ void Renderer::LoadAssets()
     // Create the root signiture for the wire frame pipeline
     {
 
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
-        CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[4];
+        CD3DX12_ROOT_PARAMETER1 rootParameters[4];
 
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
         ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
         rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
         rootParameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
         rootParameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+        rootParameters[3].InitAsDescriptorTable(1, &ranges[3], D3D12_SHADER_VISIBILITY_PIXEL);
 
         // Allow input layout and deny uneccessary access to certain pipeline stages.
         D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
@@ -282,7 +285,7 @@ void Renderer::LoadAssets()
         staticSamplerDesc.RegisterSpace = 0;
         staticSamplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL; // Set the shader visibility as needed
 
-        mRootSignitureInstanced.init(m_device.Get(), rootParameters, 3, rootSignatureFlags, &staticSamplerDesc, 1);
+        mRootSignitureInstanced.init(m_device.Get(), rootParameters, 4, rootSignatureFlags, &staticSamplerDesc, 1);
     }
 
     // Create the pipeline state, which includes compiling and loading shaders.
@@ -470,36 +473,9 @@ void Renderer::LoadAssets()
 
         m_device->CreateDepthStencilView(m_depthStencil.Get(), &depthStencilDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-        shadowMap.init(m_device.Get(), m_dsvHeap.Get(), dhp, 1024, 1024);
-       /*
-        resourceDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, shadowMapWidth, shadowMapHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
-        ThrowIfFailed(m_device->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &resourceDesc,
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            &depthOptimizedClearValue,
-            IID_PPV_ARGS(&shadowDepthBuffer)
-        ));
-
-
-
-        D3D12_CPU_DESCRIPTOR_HANDLE handle = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
-        handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-        m_device->CreateDepthStencilView(shadowDepthBuffer.Get(), nullptr, handle);
-
-        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-        srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
-        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MostDetailedMip = 0;
-        srvDesc.Texture2D.MipLevels = 1;
-        srvDesc.Texture2D.PlaneSlice = 0;
-        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-        shadowSrvCpuHandle = dhp.getCpuHandle(m_device.Get());
-        m_device->CreateShaderResourceView(shadowDepthBuffer.Get(), &srvDesc, shadowSrvCpuHandle);
-        shadowSrvGpuHandle = dhp.GpuHandleFromCpuHandle(shadowSrvCpuHandle);*/
+     
+        shadowMaps[0].init(m_device.Get(), m_dsvHeap.Get(), dhp, 1024, 1024);
+        shadowMaps[1].init(m_device.Get(), m_dsvHeap.Get(), dhp, 1024, 1024);
     }
 
 
@@ -695,6 +671,69 @@ inline size_t Align(size_t value, size_t alignment) {
 //
 //}
 
+void Renderer::ShadowRenderPass(const ShadowMap& map, int pass)
+{
+    // 1. Transition the depth buffer to the depth write state
+    CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+        map.shadowDepthBuffer.Get(),
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
+        D3D12_RESOURCE_STATE_DEPTH_WRITE
+    );
+
+    m_commandList->ResourceBarrier(1, &transition);
+
+
+    D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(map.mapWidth), static_cast<float>(map.mapHeight), 0.0f, 1.0f };
+    D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(map.mapWidth), static_cast<LONG>(map.mapHeight) };
+    m_commandList->RSSetViewports(1, &viewport);
+    m_commandList->RSSetScissorRects(1, &scissorRect);
+
+    m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &map.dsvHandle);
+    m_commandList->ClearDepthStencilView(map.dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+    pScene->pBoundCamera = pScene->pBoundLightCamera;
+
+    // If the bound light camera is the directional light camera, set the position
+    if (pScene->pBoundLightCamera == &directionalLightCamera)
+    {
+        ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
+        directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
+        //Set the pixel shader vertex buffer data and bind it to Register 1
+        pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
+        pScene->pBoundLightCamera->cameraSetViewMatrix();
+    }
+    else if (pScene->pBoundLightCamera == &pointLightCamera)
+    {
+
+        pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLights[pass].position;
+        pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLights[pass].position,
+            sphereTraceVector3Add(pixelShaderConstantBuffer.spotLights[pass].position, pixelShaderConstantBuffer.spotLights[pass].direction), gVector3Up);
+    }
+
+    pScene->pBoundLightCamera->cameraSetRightAndFwdVectors();
+
+    pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(pScene->pBoundCamera->cameraFwd), 1.0f);
+    lightViewProjections[pass] = sphereTraceMatrixMult(pScene->pBoundLightCamera->projectionMatrix, pScene->pBoundLightCamera->viewMatrix);
+
+
+    
+    m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
+    pScene->draw();
+    pScene->lightDraw();
+    m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
+    m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
+    drawAddedPrimitiveInstances();
+
+
+    transition = CD3DX12_RESOURCE_BARRIER::Transition(
+        map.shadowDepthBuffer.Get(),
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+    );
+    m_commandList->ResourceBarrier(1, &transition);
+}
+
 void Renderer::PopulateCommandList()
 {
     // Command list allocators can only be reset when the associated 
@@ -712,78 +751,12 @@ void Renderer::PopulateCommandList()
     dhp.bindDescriptorHeap(m_commandList.Get());
     cbaStack.resetAllStackIndices();
 
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
-    //********************************************************SHADOW PASS************************************************************************************************
+
     if(!skipShadowPass)
     {
-        // 1. Transition the depth buffer to the depth write state
-        CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowMap.shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,    // Assuming it starts in the common state
-            D3D12_RESOURCE_STATE_DEPTH_WRITE
-        );
-
-        m_commandList->ResourceBarrier(1, &transition);
-
-        // 2. Set the pipeline state and root signature
-       
-
-        // 3. Set the viewport and scissor rect
-        D3D12_VIEWPORT viewport = { 0.0f, 0.0f, static_cast<float>(shadowMap.mapWidth), static_cast<float>(shadowMap.mapHeight), 0.0f, 1.0f };
-        D3D12_RECT scissorRect = { 0, 0, static_cast<LONG>(shadowMap.mapWidth), static_cast<LONG>(shadowMap.mapHeight) };
-        m_commandList->RSSetViewports(1, &viewport);
-        m_commandList->RSSetScissorRects(1, &scissorRect);
-
-        m_commandList->OMSetRenderTargets(0, nullptr, FALSE, &shadowMap.dsvHandle);
-
-        // 5. Clear the depth buffer
-        m_commandList->ClearDepthStencilView(shadowMap.dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-        pScene->pBoundCamera = pScene->pBoundLightCamera;
-
-        // If the bound light camera is the directional light camera, set the position
-        if (pScene->pBoundLightCamera == &directionalLightCamera)
-        {
-            ST_Vector3 forwardXZ = sphereTraceVector3Normalize(sphereTraceVector3Construct(mainCamera.cameraFwd.x, 0.0f, mainCamera.cameraFwd.z));
-            directionalLightCamera.cameraPos = sphereTraceVector3AddAndScale(sphereTraceVector3Add(mainCamera.cameraPos, dirLightOffset), forwardXZ, 30.0f);
-            //Set the pixel shader vertex buffer data and bind it to Register 1
-            pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
-            pScene->pBoundLightCamera->cameraSetViewMatrix();
-        } 
-        else if (pScene->pBoundLightCamera == &pointLightCamera)
-        {
-            // Set the camera positions based on the spotlights position and direction
-            pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLights[0].position;
-            pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLights[0].position,
-                sphereTraceVector3Add(pixelShaderConstantBuffer.spotLights[0].position, pixelShaderConstantBuffer.spotLights[0].direction), gVector3Up);
-        }
-        
-        pScene->pBoundLightCamera->cameraSetRightAndFwdVectors();
-
-        pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(pScene->pBoundCamera->cameraFwd), 1.0f);
-        lightViewProjection = sphereTraceMatrixMult(pScene->pBoundLightCamera->projectionMatrix, pScene->pBoundLightCamera->viewMatrix);
-
-        // 6. Draw the scene (bind vertex/index buffers, set the root parameters, andsa issue draw calls)
         isShadowPass = true;
-        m_commandList->SetPipelineState(mPipelineShadow.pPipelineState);
-        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-        pScene->draw();
-        pScene->lightDraw();
-        m_commandList->SetPipelineState(mPipelineShadowInstanced.pPipelineState);
-        m_commandList->SetGraphicsRootSignature(mRootSignitureShadow.pRootSigniture);
-        drawAddedPrimitiveInstances();
-
-        // 7. Transition the depth buffer to a readable state (optional)
-        transition = CD3DX12_RESOURCE_BARRIER::Transition(
-            shadowMap.shadowDepthBuffer.Get(),
-            D3D12_RESOURCE_STATE_DEPTH_WRITE,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        );
-        m_commandList->ResourceBarrier(1, &transition);
-
+        for(int i = 0;i<numShadowPasses; i++)
+            ShadowRenderPass(shadowMaps[i], i);
     }
     //writeShadowDepthBufferToDDS();
     //********************************************************RENDER PASS************************************************************************************************
@@ -793,6 +766,7 @@ void Renderer::PopulateCommandList()
     //********************************************************RENDER PASS************************************************************************************************
     // Indicate that the back buffer will be used as a render target.
     {
+        isShadowPass = false;
         CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         m_commandList->ResourceBarrier(1, &resourceBarrier);
         resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -812,9 +786,7 @@ void Renderer::PopulateCommandList()
         m_commandList->ClearDepthStencilView(m_dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 
-
-        //draw scene
-        isShadowPass = false;
+        //draw scene       
         pScene->pBoundCamera = &mainCamera;
         pScene->draw();
         pScene->mainDraw();
@@ -887,7 +859,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = 0.0f;
-    m_constantBufferData.lightViewProjection = lightViewProjection;
+    m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -897,7 +869,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -927,7 +899,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.color = color;
     m_constantBufferData.colorMix = 1.0f;
-    m_constantBufferData.lightViewProjection = lightViewProjection;
+    m_constantBufferData.lightViewProjection = lightViewProjections[0];
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     if (isShadowPass)
     {
@@ -937,7 +909,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -966,7 +938,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
-    m_constantBufferData.lightViewProjection = lightViewProjection;
+    m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -976,7 +948,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1005,7 +977,7 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
     m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
-    m_constantBufferData.lightViewProjection = lightViewProjection;
+    m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -1015,7 +987,7 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1031,7 +1003,7 @@ void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3
     m_constantBufferData.mvp = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, sphereTraceMatrixMult(pScene->pBoundCamera->viewMatrix, m_constantBufferData.model));
     m_constantBufferData.colorMix = colorMix;
     m_constantBufferData.color = color;
-    m_constantBufferData.lightViewProjection = lightViewProjection;
+    m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
         cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
@@ -1040,7 +1012,7 @@ void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
-        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMap.shadowSrvGpuHandle);
+        m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
         pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
         pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
@@ -1280,13 +1252,13 @@ void Renderer::drawAddedPrimitiveInstances()
             UINT numStacks = (perPrimitiveInstanceBufferCounts[type] / 400) + 1;
             for (int j = 0; j < numStacks; j++)
             {
-                perPrimitiveInstanceBuffers[type][j].lightViewProj = lightViewProjection;
+                perPrimitiveInstanceBuffers[type][j].lightViewProjs[0] = lightViewProjections[0];
                 perPrimitiveInstanceBuffers[type][j].viewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, pScene->pBoundCamera->viewMatrix);
                 perPrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perPrimitiveInstanceBuffers[type][j]);
                 perPrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
                 pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
                 pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
-                m_commandList->SetGraphicsRootDescriptorTable(2, shadowMap.shadowSrvGpuHandle);
+                m_commandList->SetGraphicsRootDescriptorTable(2, shadowMaps[0].shadowSrvGpuHandle);
 
                 UINT numInstance = j < numStacks - 1 ? 400 : perPrimitiveInstanceBufferCounts[type] % 400;
                 switch (type)

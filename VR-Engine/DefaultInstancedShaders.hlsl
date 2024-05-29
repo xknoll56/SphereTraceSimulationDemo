@@ -3,7 +3,7 @@
 cbuffer VertexShaderConstants : register(b0)
 {
     float4x4 viewProjection;
-    float4x4 lightViewProj;
+    float4x4 lightViewProjs[2];
     float4x4 model[MAX_INSTANCES];
     float4 colors[MAX_INSTANCES];
     
@@ -32,7 +32,8 @@ struct PSInput
     float4 position : SV_POSITION;
     float3 normal : NORMAL; // Surface normal
     float4 color : COLOR;
-    float4 lightSpacePos : TEXCOORD1;
+    float4 lightSpacePos : TEXCOORD;
+    float4 lightSpacePos1 : TEXCOORD1;
     float4 modelPos : TEXCOORD2;
 };
 
@@ -66,7 +67,8 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
     result.normal = normalize(mul(normal, extractRot(model[instanceID])));
     result.color = colors[instanceID];
     result.modelPos = mul(float4(position, 1.0f), model[instanceID]);
-    result.lightSpacePos = mul(result.modelPos, lightViewProj);
+    result.lightSpacePos = mul(result.modelPos, lightViewProjs[0]);
+    result.lightSpacePos1 = mul(result.modelPos, lightViewProjs[1]);
     return result;
 }
 

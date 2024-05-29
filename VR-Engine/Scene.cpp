@@ -116,7 +116,7 @@ void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
 	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 2;
-	//pBoundLightCamera->cameraPos = ST_VECTOR3(0, 8, -2);
+	Renderer::instance.numShadowPasses = 2;
 }
 
 void SceneRender::update(float dt)
