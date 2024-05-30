@@ -71,6 +71,7 @@ struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
     ST_SphereCollider* psc;
+    ST_PlaneCollider* pGlitchyPlane;
     ST_RayTraceData rtd;
     bool started = false;
     std::vector<ColliderModel> models;

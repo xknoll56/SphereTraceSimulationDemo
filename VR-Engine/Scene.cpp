@@ -115,7 +115,7 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
-	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 1;
+	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 2;
 	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 2;
 }
 
@@ -130,14 +130,14 @@ void SceneRender::update(float dt)
 	ST_Vector3 position = ST_VECTOR3(2.0f * sinf(period), 8, 2.0f * cosf(period));
 	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(0, 3, 0), position)), gVector3One, 0);
 
-	position = ST_VECTOR3(2.0f * sinf(period +M_PI)+8, 8, 2.0f * cosf(period + M_PI));
-	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(8, 3, 0), position)), gVector3One, 1);
+	position = ST_VECTOR3(2.0f * sinf(period +M_PI)+15, 8, 2.0f * cosf(period + M_PI));
+	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(15, 3, 0), position)), gVector3One, 1);
 }
 
 void SceneRender::draw()
 {
 	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(0,3,0), gQuaternionIdentity, gVector3One, gVector4ColorGreen, PRIMITIVE_BOX);
-	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(8,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
+	Renderer::instance.addPrimitiveInstance(ST_VECTOR3(15,3,0), gQuaternionIdentity, gVector3One, gVector4ColorBlue, PRIMITIVE_BOX);
 	Renderer::instance.addPrimitiveInstance(gVector3Zero, gQuaternionIdentity, ST_VECTOR3(1000, 1, 1000), gVector4ColorWhite, PRIMITIVE_PLANE);
 }
 
@@ -178,6 +178,7 @@ void scenePhysicsTest::init()
 	simSpace = sphereTraceSimulationConstruct();
 	ST_SphereCollider* pSphere;
 	ST_PlaneCollider* pPlane;
+	ST_Collider* pLightCollider;
 	ColliderModel model;
 	ST_AABB spawnAABB = sphereTraceAABBConstruct1(ST_VECTOR3(-400, -400, -400), ST_VECTOR3(400, 400, 400));
 	models.reserve(3000);
@@ -207,7 +208,19 @@ void scenePhysicsTest::init()
 		models.push_back(model);
 		pPlane->collider.pWhatever = (ST_Index)&models[models.size() - 1];
 		sphereTraceSimulationInsertPlaneCollider(&simSpace, pPlane);
+		if (i % 5 == 0)
+		{
+			pLightCollider = new ST_Collider();
+			*pLightCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(pPlane->position, ST_VECTOR3(0.5, 0.5, 0.5f)));
+			model.pCollider = pLightCollider;
+			model.color = gVector4ColorWhite;
+			models.push_back(model);
+			pLightCollider->pWhatever = (ST_Index)&models[models.size() - 1];
+			sphereTraceSimulationInsertAABBCollider(&simSpace, pLightCollider);
+		}
+
 	}
+	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, 0.001f);
 }
 
 void scenePhysicsTest::update(float dt)
@@ -241,7 +254,11 @@ void scenePhysicsTest::update(float dt)
 	}
 	if (Input::mouse[MOUSE_LEFT])
 	{
-		sphereTraceSimulationRayTrace(&simSpace, Renderer::instance.mainCamera.cameraPos, sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), FLT_MAX, &rtd);
+		if (sphereTraceSimulationRayTrace(&simSpace, Renderer::instance.mainCamera.cameraPos, sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), FLT_MAX, &rtd))
+		{
+			pGlitchyPlane = (ST_PlaneCollider*)rtd.pOtherCollider;
+		}
+
 	}
 }
 
@@ -251,8 +268,21 @@ void scenePhysicsTest::mainDraw()
 
 	ST_IndexList viewColliders = sphereTraceIndexListConstruct();
 	ST_IndexList leafNodes = sphereTraceIndexListConstruct();
+	ST_AABB sampleAABB = sphereTraceAABBConstruct2(sphereTraceVector3AddAndScale(Renderer::instance.mainCamera.cameraPos, Renderer::instance.mainCamera.cameraFwd, 50.0f), ST_VECTOR3(75, 75, 75));
 	sphereTraceOctTreeGridSampleIntersectionLeafsAndCollidersFromPerspective(&simSpace.octTreeGrid, Renderer::instance.mainCamera.cameraPos,
 		sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), sphereTraceDegreesToRadians(140.0f), 200.0f, &leafNodes, &viewColliders);
+	//sphereTraceOctTreeGridReSampleIntersectionLeafsAndColliders(&simSpace.octTreeGrid, &sampleAABB, &leafNodes, &viewColliders, true, true);
+	if (Input::keys[KEY_P])
+	{
+		if (sphereTraceIndexListContains(&viewColliders, (ST_Index)pGlitchyPlane))
+		{
+			printf("good\n");
+		}
+		else
+		{
+			printf("bad\n");
+		}
+	}
 	ColliderModel model;
 	ST_Collider* pCollider;
 	ST_IndexListData* pild = viewColliders.pFirst;
@@ -270,6 +300,9 @@ void scenePhysicsTest::mainDraw()
 			//Renderer::instance.addPrimitiveInstance(model.pCollider->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f*model.pCollider->boundingRadius),
 			//	sphereTraceVector4ColorSetAlpha(model.color, 0.5f), PRIMITIVE_SPHERE);
 			break;
+		case COLLIDER_AABB:
+			addAABB(model.pCollider->aabb, gVector4ColorGreen);
+
 
 		}
 		pild = pild->pNext;

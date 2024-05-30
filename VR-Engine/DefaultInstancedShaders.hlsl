@@ -133,19 +133,18 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     float epsilon = 0.005;
     
-    float shadowFactor = calculateShadowFactor(input.lightSpacePos[0], shadowTexture, epsilon);
-    float overallLightValue = computeSpotlight(spotLights[0], input, shadowFactor);
+    float shadowFactor = 1.0f;
+    if(numShadowTextures > 0)
+        shadowFactor = calculateShadowFactor(input.lightSpacePos[0], shadowTexture, epsilon);
     
+    float overallLightValue = 1.0f;
+    if (numSpotLights > 0)
+        overallLightValue = computeSpotlight(spotLights[0], input, shadowFactor);
+    
+    shadowFactor = 1.0f;
     if(numShadowTextures>1)
-    {
         shadowFactor = calculateShadowFactor(input.lightSpacePos[1], shadowTexture1, epsilon);
-    }
-    else
-    {
-        shadowFactor = 1.0f;
-    }
-    
-    
+
     if(numSpotLights>1)
         overallLightValue += computeSpotlight(spotLights[1], input, shadowFactor);
     
