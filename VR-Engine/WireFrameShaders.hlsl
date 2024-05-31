@@ -2,7 +2,7 @@
 cbuffer VertexShaderConstants : register(b0)
 {
     float4x4 viewProjection;
-    float4x4 lightViewProj;
+    float4x4 lightViewProj[2];
     float4x4 model[MAX_INSTANCES];
     float4 colors[MAX_INSTANCES];
     

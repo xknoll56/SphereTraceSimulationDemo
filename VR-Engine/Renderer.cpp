@@ -399,25 +399,25 @@ void Renderer::LoadAssets()
     //    mConstantBufferAccessors[i].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
     //mConstantBufferAccessors[400].init(m_device.Get(), dhp, &m_constantBufferData, sizeof(VertexShaderConstantBuffer));
     cbaStack = ConstantBufferAccessorStack(3);
-    pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer));
+    pixelShaderConstantBufferAccessor.init(m_device.Get(), dhp, &pixelShaderConstantBuffer, sizeof(pixelShaderConstantBuffer), FrameCount);
     ConstantBufferAccessor accessor;
     for (int i = 0; i < 4; i++)
     {
         perPrimitiveInstanceBuffers[i].push_back(instanceBuf);
         perPrimitiveInstanceCBAAccessors[i].push_back(accessor);
-        perPrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer));
+        perPrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer), FrameCount);
 
         perWireFramePrimitiveInstanceBuffers[i].push_back(instanceBuf);
         perWireFramePrimitiveInstanceCBAAccessors[i].push_back(accessor);
-        perWireFramePrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer));
+        perWireFramePrimitiveInstanceCBAAccessors[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer), FrameCount);
 
         perPrimitiveInstanceBufferShadows[i].push_back(shadowInstanceBuf);
         perPrimitiveInstanceCBAAccessorsShadows[i].push_back(accessor);
-        perPrimitiveInstanceCBAAccessorsShadows[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBufferShadows[0], sizeof(VertexShaderInstancedConstantBufferShadows));
+        perPrimitiveInstanceCBAAccessorsShadows[i][0].init(m_device.Get(), dhp, &perPrimitiveInstanceBufferShadows[0], sizeof(VertexShaderInstancedConstantBufferShadows), FrameCount);
     }
-    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 2000);
-    UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
-    cbaStack.createStack(m_device.Get(), dhp, 256, 2000);
+    UINT cbastackhandle = cbaStack.createStack(m_device.Get(), dhp, sizeof(VertexShaderConstantBuffer), 400, FrameCount);
+    UINT cbastackhandle1 = cbaStack.createStack(m_device.Get(), dhp, 256, 400, FrameCount);
+    cbaStack.createStack(m_device.Get(), dhp, 256, 400, FrameCount);
 
 
     // Note: ComPtr's are CPU objects but this resource needs to stay in scope until
@@ -863,7 +863,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
@@ -871,9 +871,9 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
         m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
     }
     switch (type)
     {
@@ -904,16 +904,16 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     if (isShadowPass)
     {
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
     }
     switch (type)
     {
@@ -942,7 +942,7 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
     m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
@@ -950,9 +950,9 @@ void Renderer::drawPrimitive(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
         m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
     }
     switch (type)
     {
@@ -981,7 +981,7 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
     m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
@@ -989,9 +989,9 @@ void Renderer::drawVertexBuffer(ST_Vector3 position, ST_Quaternion rotation, ST_
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         texture.bind(m_commandList.Get(), 2);
         m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
     }
     vertexBuffer.draw(m_commandList.Get());
 }
@@ -1007,16 +1007,16 @@ void Renderer::drawModel(ST_Vector3 position, ST_Quaternion rotation, ST_Vector3
     m_constantBufferData.lightViewProjection = lightViewProjections[0];
     if (isShadowPass)
     {
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
         m_commandList->SetPipelineState(mPipeline.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSigniture.pRootSigniture);
         m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+        pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
     }
     for (Model::ModelComponent& component: model.components)
     {
@@ -1041,7 +1041,7 @@ void Renderer::drawWireFrame(ST_Vector3 position, ST_Quaternion rotation, ST_Vec
 	m_constantBufferData.color = color;
 	m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
 	m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0);
+	cbaStack.updateBindAndIncrementCurrentAccessor(0, (void*)&m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
 
 	switch (type)
     {
@@ -1088,14 +1088,14 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
     if (isShadowPass)
     {
         return;
-        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0);
+        cbaStack.updateBindAndIncrementCurrentAccessor(2, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
     }
     else
     {
         m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
-        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0);
-        cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&color, m_commandList.Get(), 1);
+        cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
+        cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&color, m_commandList.Get(), 1, m_frameIndex);
     }
     mLineVB.draw(m_commandList.Get());
 }
@@ -1118,7 +1118,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
             ConstantBufferAccessor cba;
             perPrimitiveInstanceCBAAccessorsShadows[type].push_back(cba);
             UINT newStackCap = perPrimitiveInstanceCBAAccessorsShadows[type].size() - 1;
-            perPrimitiveInstanceCBAAccessorsShadows[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(VertexShaderInstancedConstantBufferShadows));
+            perPrimitiveInstanceCBAAccessorsShadows[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(VertexShaderInstancedConstantBufferShadows), FrameCount);
 
             perPrimitiveInstanceBufferShadows[type].push_back(shadowInstanceBuf);
             perPrimitiveInstanceBufferCapacitiesShadows[type] = (newStackCap + 1) * 400;
@@ -1138,7 +1138,7 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
             ConstantBufferAccessor cba;
             perPrimitiveInstanceCBAAccessors[type].push_back(cba);
             UINT newStackCap = perPrimitiveInstanceCBAAccessors[type].size() - 1;
-            perPrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer));
+            perPrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer), FrameCount);
 
             perPrimitiveInstanceBuffers[type].push_back(instanceBuf);
             perPrimitiveInstanceBufferCapacities[type] = (newStackCap + 1) * 400;
@@ -1163,7 +1163,7 @@ void Renderer::addWireFrameInstance(ST_Vector3 position, ST_Quaternion rotation,
         ConstantBufferAccessor cba;
 		perWireFramePrimitiveInstanceCBAAccessors[type].push_back(cba);
         UINT newStackCap = perWireFramePrimitiveInstanceCBAAccessors[type].size() - 1;
-		perWireFramePrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer));
+		perWireFramePrimitiveInstanceCBAAccessors[type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(WireFrameInstancedConstantBuffer), FrameCount);
         
 		perWireFramePrimitiveInstanceBuffers[type].push_back(instanceBuf);
         perWireFramePrimitiveInstanceBufferCapacities[type] = (newStackCap + 1) * 400;
@@ -1187,8 +1187,8 @@ void Renderer::drawAddedWireFrameInstances()
         for (int j = 0; j < numStacks; j++)
         {
             perWireFramePrimitiveInstanceBuffers[type][j].viewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, pScene->pBoundCamera->viewMatrix);
-            perWireFramePrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perWireFramePrimitiveInstanceBuffers[type][j]);
-            perWireFramePrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
+            perWireFramePrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perWireFramePrimitiveInstanceBuffers[type][j], m_frameIndex);
+            perWireFramePrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0, m_frameIndex);
             UINT numInstance = j < numStacks - 1 ? 400 : perWireFramePrimitiveInstanceBufferCounts[type] % 400;
             switch (type)
             {
@@ -1222,8 +1222,8 @@ void Renderer::drawAddedPrimitiveInstances()
             UINT numStacks = (perPrimitiveInstanceBufferCountsShadows[type] / 400) + 1;
             for (int j = 0; j < numStacks; j++)
             {
-                perPrimitiveInstanceCBAAccessorsShadows[type][j].updateConstantBufferData(&perPrimitiveInstanceBufferShadows[type][j]);
-                perPrimitiveInstanceCBAAccessorsShadows[type][j].bind(m_commandList.Get(), 0);
+                perPrimitiveInstanceCBAAccessorsShadows[type][j].updateConstantBufferData(&perPrimitiveInstanceBufferShadows[type][j], m_frameIndex);
+                perPrimitiveInstanceCBAAccessorsShadows[type][j].bind(m_commandList.Get(), 0, m_frameIndex);
 
                 switch (type)
                 {
@@ -1256,10 +1256,10 @@ void Renderer::drawAddedPrimitiveInstances()
                 perPrimitiveInstanceBuffers[type][j].lightViewProjs[0] = lightViewProjections[0];
                 perPrimitiveInstanceBuffers[type][j].lightViewProjs[1] = lightViewProjections[1];
                 perPrimitiveInstanceBuffers[type][j].viewProjection = sphereTraceMatrixMult(pScene->pBoundCamera->projectionMatrix, pScene->pBoundCamera->viewMatrix);
-                perPrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perPrimitiveInstanceBuffers[type][j]);
-                perPrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0);
-                pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer);
-                pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1);
+                perPrimitiveInstanceCBAAccessors[type][j].updateConstantBufferData(&perPrimitiveInstanceBuffers[type][j], m_frameIndex);
+                perPrimitiveInstanceCBAAccessors[type][j].bind(m_commandList.Get(), 0, m_frameIndex);
+                pixelShaderConstantBufferAccessor.updateConstantBufferData((void*)&pixelShaderConstantBuffer, m_frameIndex);
+                pixelShaderConstantBufferAccessor.bind(m_commandList.Get(), 1, m_frameIndex);
                 m_commandList->SetGraphicsRootDescriptorTable(2, shadowMaps[0].shadowSrvGpuHandle);
                 m_commandList->SetGraphicsRootDescriptorTable(3, shadowMaps[0].shadowSrvGpuHandle);
 

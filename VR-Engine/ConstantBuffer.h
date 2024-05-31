@@ -5,16 +5,22 @@
 struct ConstantBufferAccessor
 {
 
-    ID3D12Resource* m_constantBuffer;
-    UINT8* m_pCbvDataBegin;
+    ID3D12Resource** m_constantBuffers;
+    UINT8** m_pCbvDataBegins;
     UINT mSizeofConstantBufferData;
-    D3D12_CPU_DESCRIPTOR_HANDLE cpuDescriptorHandle;
-    D3D12_GPU_DESCRIPTOR_HANDLE gpuDescriptorHandle;
+    D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptorHandles;
+    D3D12_GPU_DESCRIPTOR_HANDLE* gpuDescriptorHandles;
+    UINT numSwaps;
 
-    void init(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, void* pConstantBufferData, UINT sizeofConstantBufferData)
+    void init(ID3D12Device* pDevice, DescriptorHandleProvider& dhp, void* pConstantBufferData, UINT sizeofConstantBufferData, UINT numSwaps)
     {
-
+        this->numSwaps = numSwaps;
+        m_constantBuffers = new ID3D12Resource*[numSwaps];
+        cpuDescriptorHandles = new D3D12_CPU_DESCRIPTOR_HANDLE[numSwaps];
+        gpuDescriptorHandles = new D3D12_GPU_DESCRIPTOR_HANDLE[numSwaps];
+        m_pCbvDataBegins = new UINT8*[numSwaps];
         // Create the constant buffer.
+        for(int i = 0; i< numSwaps; i++)
         {
             mSizeofConstantBufferData = sizeofConstantBufferData;
 
@@ -26,33 +32,33 @@ struct ConstantBufferAccessor
                 &resourceDesc,
                 D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr,
-                IID_PPV_ARGS(&m_constantBuffer)));
+                IID_PPV_ARGS(&m_constantBuffers[i])));
 
             // Describe and create a constant buffer view.
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-            cbvDesc.BufferLocation = m_constantBuffer->GetGPUVirtualAddress();
+            cbvDesc.BufferLocation = m_constantBuffers[i]->GetGPUVirtualAddress();
             cbvDesc.SizeInBytes = mSizeofConstantBufferData;
-            cpuDescriptorHandle = dhp.getCpuHandle(pDevice);
-            pDevice->CreateConstantBufferView(&cbvDesc, cpuDescriptorHandle);
+            cpuDescriptorHandles[i] = dhp.getCpuHandle(pDevice);
+            pDevice->CreateConstantBufferView(&cbvDesc, cpuDescriptorHandles[i]);
 
             // Map and initialize the constant buffer. We don't unmap this until the
             // app closes. Keeping things mapped for the lifetime of the resource is okay.
             CD3DX12_RANGE readRange(0, 0);        // We do not intend to read from this resource on the CPU.
-            ThrowIfFailed(m_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegin)));
-            memcpy(m_pCbvDataBegin, pConstantBufferData, sizeofConstantBufferData);
+            ThrowIfFailed(m_constantBuffers[i]->Map(0, &readRange, reinterpret_cast<void**>(&m_pCbvDataBegins[i])));
+            memcpy(m_pCbvDataBegins[i], pConstantBufferData, sizeofConstantBufferData);
 
-            gpuDescriptorHandle = dhp.GpuHandleFromCpuHandle(cpuDescriptorHandle);
+            gpuDescriptorHandles[i] = dhp.GpuHandleFromCpuHandle(cpuDescriptorHandles[i]);
         }
     }
 
-    void updateConstantBufferData(void* pConstantBufferData)
+    void updateConstantBufferData(void* pConstantBufferData, UINT swapIndex)
     {
-        memcpy(m_pCbvDataBegin, pConstantBufferData, mSizeofConstantBufferData);
+        memcpy(m_pCbvDataBegins[swapIndex], pConstantBufferData, mSizeofConstantBufferData);
     }
 
-    void bind(ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    void bind(ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex, UINT swapIndex)
     {
-        pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuDescriptorHandle);
+        pCommandList->SetGraphicsRootDescriptorTable(rootParameterIndex, gpuDescriptorHandles[swapIndex]);
     }
 };
 
@@ -91,7 +97,7 @@ struct ConstantBufferAccessorStack
         return *this;
     }
 
-    UINT createStack(ID3D12Device* pDevice, DescriptorHandleProvider& dhp,  UINT sizeofConstantBufferData, UINT numAccessors)
+    UINT createStack(ID3D12Device* pDevice, DescriptorHandleProvider& dhp,  UINT sizeofConstantBufferData, UINT numAccessors, UINT numSwaps)
     {
         if (numStacks < size)
         {
@@ -101,7 +107,7 @@ struct ConstantBufferAccessorStack
             char* data = (char*)malloc(sizeofConstantBufferData);
             for (int i = 0; i < numAccessors; i++)
             {
-                cbaStacks[stackIndex][i].init(pDevice, dhp, data, sizeofConstantBufferData);
+                cbaStacks[stackIndex][i].init(pDevice, dhp, data, sizeofConstantBufferData, numSwaps);
             }
             numStacks++;
             free(data);
@@ -110,14 +116,14 @@ struct ConstantBufferAccessorStack
         return -1;
     }
 
-    void updateCurrentAccessor(UINT stackIndex, void* pConstantBufferData)
+    void updateCurrentAccessor(UINT stackIndex, void* pConstantBufferData, UINT swapIndex)
     {
-        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData, swapIndex);
     }
 
-    void bindCurrentAccessor(UINT stackIndex, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    void bindCurrentAccessor(UINT stackIndex, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex, UINT swapIndex)
     {
-        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex, swapIndex);
     }
 
     void incrementStackIndex(UINT stackIndex)
@@ -129,10 +135,10 @@ struct ConstantBufferAccessorStack
         }
     }
 
-    void updateBindAndIncrementCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    void updateBindAndIncrementCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex, UINT swapIndex)
     {
-        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
-        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData, swapIndex);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex, swapIndex);
         UINT curIndex = stackIndices[stackIndex];
         if (curIndex < cbaStacks[stackIndex].size() - 1)
         {
@@ -140,10 +146,10 @@ struct ConstantBufferAccessorStack
         }
     }
 
-    void updateAndBindtCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex)
+    void updateAndBindtCurrentAccessor(UINT stackIndex, void* pConstantBufferData, ID3D12GraphicsCommandList* pCommandList, UINT rootParameterIndex, UINT swapIndex)
     {
-        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData);
-        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].updateConstantBufferData(pConstantBufferData, swapIndex);
+        cbaStacks[stackIndex][stackIndices[stackIndex]].bind(pCommandList, rootParameterIndex, swapIndex);
     }
 
     void resetStackIndex(UINT stackIndex)
