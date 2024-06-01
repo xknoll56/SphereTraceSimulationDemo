@@ -73,14 +73,9 @@ struct scenePhysicsTest : Scene
 {
     ST_SimulationSpace simSpace;
     ST_SphereCollider* psc;
-    ST_PlaneCollider* pGlitchyPlane;
-    ST_RayTraceData rtd;
+    ST_Vector3 testPos;
     ST_IndexList viewColliders;
-    ST_Vector3 closestLights[4];
-    float closestLightDists[4];
-    int lightsGathered;
-    float maxLightDist;
-    int maxLightDistIndex;
+    std::vector<ST_Collider*> closestLights;
     bool started = false;
     std::vector<ColliderModel> models;
     void update(float dt) override;

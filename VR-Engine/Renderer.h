@@ -202,10 +202,11 @@ public:
 
     UINT perPrimitiveInstanceBufferCountsShadows[4] = { 0,0,0,0 };
     UINT perPrimitiveInstanceBufferCapacitiesShadows[4] = { 400,400,400,400 };
-    std::vector<VertexShaderInstancedConstantBufferShadows> perPrimitiveInstanceBufferShadows[4];
-    std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[4];
+    std::vector<VertexShaderInstancedConstantBufferShadows> perPrimitiveInstanceBufferShadows[2][4];
+    std::vector<ConstantBufferAccessor> perPrimitiveInstanceCBAAccessorsShadows[2][4];
 
     bool skipShadowPass = false;
+    UINT shadowPass;
     void setSpotLight(SpotLight spotLight, int spotLightIndex);
     void setSpotLight(ST_Vector3 position, ST_Vector3 direction, ST_Vector3 color, int spotLightIndex);
 private:
@@ -270,7 +271,7 @@ private:
     void LoadPipeline();
     void LoadAssets();
     void PopulateCommandList();
-    void ShadowRenderPass(const ShadowMap& map, int pass);
+    void ShadowRenderPass(const ShadowMap& map);
     void MoveToNextFrame();
     void WaitForGpu();
     void writeShadowDepthBufferToDDS();

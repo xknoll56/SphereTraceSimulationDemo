@@ -4,6 +4,7 @@
 #include "SphereTracePhysicsEngine/src/SphereTraceMath.h"
 #include "SphereTracePhysicsEngine/src/SphereTraceGlobals.h"
 #include "Renderer.h"
+#include <algorithm>
 
 
 void Scene::updateCamera(float dt)
@@ -120,8 +121,8 @@ void Scene::drawSphereCubeCluster(ST_SphereCubeCluster& cluster, ST_Vector4 colo
 void SceneRender::init()
 {
 	pBoundLightCamera = &Renderer::instance.pointLightCamera;
-	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 1;
-	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 1;
+	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 2;
+	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 2;
 }
 
 void SceneRender::update(float dt)
@@ -137,6 +138,9 @@ void SceneRender::update(float dt)
 
 	position = ST_VECTOR3(2.0f * sinf(period +M_PI)+15, 8, 2.0f * cosf(period + M_PI));
 	Renderer::instance.setSpotLight(position, sphereTraceVector3Normalize(sphereTraceVector3Subtract(ST_VECTOR3(15, 3, 0), position)), gVector3One, 1);
+
+	Renderer::instance.setSpotLight(ST_VECTOR3(0,8, 25), gVector3Down, gVector3One, 2);
+	Renderer::instance.setSpotLight(ST_VECTOR3(15, 8, 25), gVector3Down, gVector3One, 3);
 }
 
 void SceneRender::draw()
@@ -154,8 +158,9 @@ void SceneRender::mainDraw()
 {
 	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[0].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorRed, 0.7f), PRIMITIVE_SPHERE);
 	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[1].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorBlue, 0.7f), PRIMITIVE_SPHERE);
-	Renderer::instance.drawLine(Renderer::instance.pixelShaderConstantBuffer.spotLights[0].position, sphereTraceVector3AddAndScale(Renderer::instance.pixelShaderConstantBuffer.spotLights[0].position,
-		Renderer::instance.pixelShaderConstantBuffer.spotLights[0].direction, 10.0f), gVector4ColorRed);
+	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[2].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorBlue, 0.7f), PRIMITIVE_SPHERE);
+	Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[3].position, gQuaternionIdentity, gVector3One, sphereTraceVector4ColorSetAlpha(gVector4ColorBlue, 0.7f), PRIMITIVE_SPHERE);
+
 }
 
 float timeGetRandomFloatBetween0And1()
@@ -184,7 +189,6 @@ void scenePhysicsTest::init()
 	Renderer::instance.pixelShaderConstantBuffer.numSpotLights = 4;
 	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 2;
 
-	Renderer::instance.skipShadowPass = true;
 	Renderer::instance.mainCamera.cameraMovementSpeed = 22.0f;
 	simSpace = sphereTraceSimulationConstruct();
 	ST_SphereCollider* pSphere;
@@ -234,6 +238,13 @@ void scenePhysicsTest::init()
 	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, 0.001f);
 }
 
+bool compareLightsByDistance(const ST_Collider* pa, const ST_Collider* pb)
+{
+	float da = sphereTraceVector3Distance(pa->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	float db = sphereTraceVector3Distance(pb->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	return da < db;
+}
+
 void scenePhysicsTest::update(float dt)
 {
 	updateCamera(dt);
@@ -256,6 +267,11 @@ void scenePhysicsTest::update(float dt)
 		pild = pild->pNext;
 	}
 
+	if (Input::keysDown[KEY_L])
+	{
+		testPos = Renderer::instance.mainCamera.cameraPos;
+	}
+
 	if (Input::keysDown[VK_SPACE])
 	{
 		started = true;
@@ -265,8 +281,7 @@ void scenePhysicsTest::update(float dt)
 	}
 
 	{
-		lightsGathered = 0;
-		maxLightDist = 0.0f;
+		closestLights.clear();
 		viewColliders = sphereTraceIndexListConstruct();
 		ST_IndexList leafNodes = sphereTraceIndexListConstruct();
 		sphereTraceOctTreeGridSampleIntersectionLeafsAndCollidersFromPerspective(&simSpace.octTreeGrid, Renderer::instance.mainCamera.cameraPos,
@@ -280,46 +295,25 @@ void scenePhysicsTest::update(float dt)
 			switch (model.pCollider->colliderType)
 			{
 			case COLLIDER_AABB:
-				float dist = sphereTraceVector3Distance(pCollider->aabb.center, Renderer::instance.mainCamera.cameraPos);
-				if (lightsGathered < 4)
-				{
-					closestLights[lightsGathered] = pCollider->aabb.center;
-					closestLightDists[lightsGathered] = dist;
-					if (dist > maxLightDist)
-					{
-						maxLightDist = dist;
-						maxLightDistIndex = lightsGathered;
-					}
-					lightsGathered++;
-				}
-				else
-				{
-					if (dist < maxLightDist)
-					{
-						closestLights[maxLightDistIndex] = pCollider->aabb.center;
-						closestLightDists[maxLightDistIndex] = dist;
-					}
-					maxLightDistIndex = 0;
-					maxLightDist = 0.0f;
-					for (int i = 0; i < 4; i++)
-					{
-						if (closestLightDists[i] > maxLightDist)
-						{
-							maxLightDist = closestLightDists[i];
-							maxLightDistIndex = i;
-						}
-					}
-				}
+				closestLights.push_back(pCollider);
 
 			}
 			pild = pild->pNext;
 		}
 		sphereTraceIndexListFree(&leafNodes);
 
-		for (int i = 0; i < lightsGathered; i++)
+
+		std::sort(closestLights.begin(), closestLights.end(), compareLightsByDistance);
+
+		if (closestLights.size() > 4) 
+		{
+			closestLights.erase(closestLights.begin() + 4, closestLights.end());
+		}
+
+		for (int i = 0; i < closestLights.size(); i++)
 		{
 			//Renderer::instance.drawPrimitive(closestLights[i], gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_SPHERE);
-			Renderer::instance.setSpotLight(closestLights[i], gVector3Down, gVector3One, i);
+			Renderer::instance.setSpotLight(closestLights[i]->aabb.center, gVector3Down, gVector3One, i);
 		}
 	}
 }
@@ -328,9 +322,12 @@ void scenePhysicsTest::mainDraw()
 {
 
 
-	for (int i = 0; i < lightsGathered; i++)
+	for (int i = 0; i < closestLights.size(); i++)
 	{
-		Renderer::instance.drawPrimitive(closestLights[i], gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorWhite, PRIMITIVE_SPHERE);
+		if(i==0)
+			Renderer::instance.drawPrimitive(closestLights[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorGreen, PRIMITIVE_SPHERE);
+		else
+			Renderer::instance.drawPrimitive(closestLights[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorWhite, PRIMITIVE_SPHERE);
 		//Renderer::instance.setSpotLight(closestLights[i], gVector3Down, gVector3One, i);
 	}
 }
@@ -374,4 +371,5 @@ void scenePhysicsTest::draw()
 	//		break;
 	//	}
 	//}
+	Renderer::instance.addPrimitiveInstance(testPos, gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_BOX);
 }
