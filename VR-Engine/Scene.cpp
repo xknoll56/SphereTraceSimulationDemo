@@ -238,10 +238,10 @@ void scenePhysicsTest::init()
 	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, 0.001f);
 }
 
-bool compareLightsByDistance(const ST_Collider* pa, const ST_Collider* pb)
+bool compareLightsByDistance(const ColliderModel pa, const ColliderModel pb)
 {
-	float da = sphereTraceVector3Distance(pa->aabb.center, Renderer::instance.mainCamera.cameraPos);
-	float db = sphereTraceVector3Distance(pb->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	float da = sphereTraceVector3Distance(pa.pCollider->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	float db = sphereTraceVector3Distance(pb.pCollider->aabb.center, Renderer::instance.mainCamera.cameraPos);
 	return da < db;
 }
 
@@ -272,6 +272,11 @@ void scenePhysicsTest::update(float dt)
 		testPos = Renderer::instance.mainCamera.cameraPos;
 	}
 
+	if (Input::keys[VK_DOWN])
+	{
+		sphereTraceVector3AddAndScaleByRef(&testPos, gVector3Down, dt);
+	}
+
 	if (Input::keysDown[VK_SPACE])
 	{
 		started = true;
@@ -280,40 +285,42 @@ void scenePhysicsTest::update(float dt)
 		sphereTraceRigidBodyResetMomentum(&psc->rigidBody);
 	}
 
+	//std::vector<ColliderModel> closestLights;
 	{
-		closestLights.clear();
+		
 		viewColliders = sphereTraceIndexListConstruct();
 		ST_IndexList leafNodes = sphereTraceIndexListConstruct();
 		sphereTraceOctTreeGridSampleIntersectionLeafsAndCollidersFromPerspective(&simSpace.octTreeGrid, Renderer::instance.mainCamera.cameraPos,
 			sphereTraceDirectionConstruct(Renderer::instance.mainCamera.cameraFwd, 1), sphereTraceDegreesToRadians(140.0f), 200.0f, &leafNodes, &viewColliders);
 		ColliderModel model;
 		pild = viewColliders.pFirst;
+		closestLights.clear();
 		for (int i = 0; i < viewColliders.count; i++)
 		{
 			pCollider = (ST_Collider*)pild->value;
 			model = *(ColliderModel*)pCollider->pWhatever;
 			switch (model.pCollider->colliderType)
 			{
-			case COLLIDER_AABB:
-				closestLights.push_back(pCollider);
+			case COLLIDER_AABB:;
+				closestLights.push_back(model);
 
 			}
 			pild = pild->pNext;
 		}
 		sphereTraceIndexListFree(&leafNodes);
 
-
+		std::cout << "sorting" << std::endl;
 		std::sort(closestLights.begin(), closestLights.end(), compareLightsByDistance);
 
 		if (closestLights.size() > 4) 
 		{
 			closestLights.erase(closestLights.begin() + 4, closestLights.end());
 		}
+		std::cout << closestLights.size() << std::endl;
 
 		for (int i = 0; i < closestLights.size(); i++)
 		{
-			//Renderer::instance.drawPrimitive(closestLights[i], gQuaternionIdentity, gVector3One, gVector4ColorWhite, PRIMITIVE_SPHERE);
-			Renderer::instance.setSpotLight(closestLights[i]->aabb.center, gVector3Down, gVector3One, i);
+			Renderer::instance.setSpotLight(closestLights[i].pCollider->aabb.center, gVector3Down, gVector3One, i);
 		}
 	}
 }
@@ -322,12 +329,12 @@ void scenePhysicsTest::mainDraw()
 {
 
 
-	for (int i = 0; i < closestLights.size(); i++)
+	for (int i = 0; i < 4; i++)
 	{
 		if(i==0)
-			Renderer::instance.drawPrimitive(closestLights[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorGreen, PRIMITIVE_SPHERE);
+			Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[i].position, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f), gVector4ColorGreen, PRIMITIVE_SPHERE);
 		else
-			Renderer::instance.drawPrimitive(closestLights[i]->aabb.center, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorWhite, PRIMITIVE_SPHERE);
+			Renderer::instance.drawPrimitive(Renderer::instance.pixelShaderConstantBuffer.spotLights[i].position, gQuaternionIdentity, sphereTraceVector3UniformSize(2.0f) , gVector4ColorWhite, PRIMITIVE_SPHERE);
 		//Renderer::instance.setSpotLight(closestLights[i], gVector3Down, gVector3One, i);
 	}
 }

@@ -496,8 +496,8 @@ void Renderer::LoadAssets()
     mainCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.40f, 0.1f, 1000.0f);
     pixelShaderConstantBuffer.lightDir = sphereTraceVector4ConstructWithVector3(sphereTraceVector3Negative(directionalLightCamera.cameraFwd), 1.0f);
     pixelShaderConstantBuffer.numShadowTextures = 1;
-    pScene = new SceneRender();
-    //pScene = new scenePhysicsTest();
+    //pScene = new SceneRender();
+    pScene = new scenePhysicsTest();
     pScene->pTimer = &timer;
     pScene->pBoundCamera = &mainCamera;
     pScene->pBoundLightCamera = &directionalLightCamera;
@@ -764,6 +764,7 @@ void Renderer::PopulateCommandList()
         {
             shadowPass = i;
             ShadowRenderPass(shadowMaps[i]);
+            std::cout << "Finishing shadow pass: " << i << std::endl;
         }
     }
     //writeShadowDepthBufferToDDS();
@@ -800,6 +801,7 @@ void Renderer::PopulateCommandList()
         pScene->mainDraw();
         drawAddedPrimitiveInstances();
         drawAddedWireFrameInstances();
+        std::cout << "finishing main draw" << std::endl;
 
         // Indicate that the back buffer will now be used to present.
         resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -1124,12 +1126,15 @@ void Renderer::addPrimitiveInstance(ST_Vector3 position, ST_Quaternion rotation,
         perPrimitiveInstanceBufferCountsShadows[type]++;
         if (perPrimitiveInstanceBufferCountsShadows[type] >= perPrimitiveInstanceBufferCapacitiesShadows[type])
         {
-            ConstantBufferAccessor cba;
-            perPrimitiveInstanceCBAAccessorsShadows[shadowPass][type].push_back(cba);
-            UINT newStackCap = perPrimitiveInstanceCBAAccessorsShadows[shadowPass][type].size() - 1;
-            perPrimitiveInstanceCBAAccessorsShadows[shadowPass][type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(VertexShaderInstancedConstantBufferShadows), FrameCount);
-
-            perPrimitiveInstanceBufferShadows[shadowPass][type].push_back(shadowInstanceBuf);
+            UINT newStackCap;
+            for (int i = 0; i < 2; i++)
+            {
+                ConstantBufferAccessor cba;
+                perPrimitiveInstanceCBAAccessorsShadows[i][type].push_back(cba);
+                newStackCap = perPrimitiveInstanceCBAAccessorsShadows[i][type].size() - 1;
+                perPrimitiveInstanceCBAAccessorsShadows[i][type][newStackCap].init(m_device.Get(), dhp, &perPrimitiveInstanceBuffers[0][0], sizeof(VertexShaderInstancedConstantBufferShadows), FrameCount);
+                perPrimitiveInstanceBufferShadows[i][type].push_back(shadowInstanceBuf);
+            }
             perPrimitiveInstanceBufferCapacitiesShadows[type] = (newStackCap + 1) * 400;
         }
     }

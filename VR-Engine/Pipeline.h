@@ -122,7 +122,7 @@ struct Pipeline
             psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
             psoDesc.RasterizerState.FrontCounterClockwise = TRUE;
             psoDesc.RasterizerState.DepthBiasClamp = 0.0f;
-            psoDesc.RasterizerState.DepthBias = 1000;
+            psoDesc.RasterizerState.DepthBias = 100;
             psoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
             psoDesc.RasterizerState.DepthClipEnable = TRUE;
         }

@@ -84,9 +84,10 @@ float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
     float3 viewDir = normalize(light.direction - input.position.xyz);
     float3 normalizedLightDir = normalize(-light.direction);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
-    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir)) * attenuation;
+    float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
+    diffuse *= attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
-    float ambient = 0.3f*attenuation;
+    float ambient = 0.05f;
     return (diffuse * shadowFactor + ambient + specular * shadowFactor);
 }
 
@@ -101,14 +102,14 @@ float computeDirectionalLight(PSInput input, float shadowFactor)
     return (diffuse * shadowFactor + ambient + specular * shadowFactor);
 }
 
-float calculateShadowFactor(float4 lightSpacePos, Texture2D<float> shadowText, float epsilon)
+float calculateShadowFactor(float4 lightSpacePos, Texture2D<float> shadowText)
 {
     float2 shadowTexCoords;
     shadowTexCoords.x = 0.5f + (lightSpacePos.x / lightSpacePos.w * 0.5f);
     shadowTexCoords.y = 0.5f - (lightSpacePos.y / lightSpacePos.w * 0.5);
 
     float pixelDepth = lightSpacePos.z / lightSpacePos.w;
-    
+    float epsilon = 0.00001f;
 
     float shadowFactor = 0.0f;
     if ((saturate(shadowTexCoords.x) == shadowTexCoords.x) &&
@@ -131,11 +132,10 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3 baseColor = input.color.xyz;
     float alpha = input.color.w;
     
-    float epsilon = 0.005;
-    
+
     float shadowFactor = 1.0f;
     if(numShadowTextures > 0)
-        shadowFactor = calculateShadowFactor(input.lightSpacePos[0], shadowTexture, epsilon);
+        shadowFactor = calculateShadowFactor(input.lightSpacePos[0], shadowTexture);
     
     float overallLightValue = 1.0f;
     if (numSpotLights > 0)
@@ -143,7 +143,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     shadowFactor = 1.0f;
     if(numShadowTextures>1)
-        shadowFactor = calculateShadowFactor(input.lightSpacePos[1], shadowTexture1, epsilon);
+        shadowFactor = calculateShadowFactor(input.lightSpacePos[1], shadowTexture1);
 
     if(numSpotLights>1)
         overallLightValue += computeSpotlight(spotLights[1], input, shadowFactor);
