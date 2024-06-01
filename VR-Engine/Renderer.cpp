@@ -488,7 +488,7 @@ void Renderer::LoadAssets()
     directionalLightCamera.cameraSetViewMatrix();
     directionalLightCamera.cameraSetRightAndFwdVectors();
     pointLightCamera = Camera::cameraConstruct(gVector3Zero, M_PI * 0.5f, 0.0f);
-    pointLightCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, M_PI * 0.35f, 0.1f, 1000.0f);
+    pointLightCamera.projectionMatrix = sphereTraceMatrixPerspective(1.0f, sphereTraceDegreesToRadians(120.0f), 0.1f, 1000.0f);
     pointLightCamera.cameraSetViewMatrix();
     pointLightCamera.cameraSetRightAndFwdVectors();
     mainCamera = Camera::cameraConstructDefault();
@@ -764,7 +764,6 @@ void Renderer::PopulateCommandList()
         {
             shadowPass = i;
             ShadowRenderPass(shadowMaps[i]);
-            std::cout << "Finishing shadow pass: " << i << std::endl;
         }
     }
     //writeShadowDepthBufferToDDS();
@@ -801,7 +800,6 @@ void Renderer::PopulateCommandList()
         pScene->mainDraw();
         drawAddedPrimitiveInstances();
         drawAddedWireFrameInstances();
-        std::cout << "finishing main draw" << std::endl;
 
         // Indicate that the back buffer will now be used to present.
         resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

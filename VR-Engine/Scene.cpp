@@ -223,7 +223,7 @@ void scenePhysicsTest::init()
 		models.push_back(model);
 		pPlane->collider.pWhatever = (ST_Index)&models[models.size() - 1];
 		sphereTraceSimulationInsertPlaneCollider(&simSpace, pPlane);
-		if (i % 5 == 0)
+		if (i % 4 == 0)
 		{
 			pLightCollider = new ST_Collider();
 			*pLightCollider = sphereTraceColliderAABBConstruct(sphereTraceAABBConstruct2(sphereTraceVector3Add(pPlane->position, ST_VECTOR3(0,15,0)), ST_VECTOR3(0.5, 0.5, 0.5f)));
@@ -309,14 +309,12 @@ void scenePhysicsTest::update(float dt)
 		}
 		sphereTraceIndexListFree(&leafNodes);
 
-		std::cout << "sorting" << std::endl;
 		std::sort(closestLights.begin(), closestLights.end(), compareLightsByDistance);
 
 		if (closestLights.size() > 4) 
 		{
 			closestLights.erase(closestLights.begin() + 4, closestLights.end());
 		}
-		std::cout << closestLights.size() << std::endl;
 
 		for (int i = 0; i < closestLights.size(); i++)
 		{

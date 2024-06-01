@@ -87,8 +87,12 @@ float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir));
     diffuse *= attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
+    float theta = acos(dot(light.direction, (1.0f / dist) * (input.modelPos.xyz - light.position)));
     float ambient = 0.05f;
-    return (diffuse * shadowFactor + ambient + specular * shadowFactor);
+    if(theta<3.14159f*0.333f)
+        return (diffuse * shadowFactor + ambient + specular * shadowFactor);
+    else
+        return ambient;
 }
 
 float computeDirectionalLight(PSInput input, float shadowFactor)
