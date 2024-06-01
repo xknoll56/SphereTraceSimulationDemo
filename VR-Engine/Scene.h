@@ -33,6 +33,8 @@ public:
     virtual void lightDraw();
     // Called once from main camera 
     virtual void mainDraw();
+    // Called at the end of the frame
+    virtual void lateUpdate();
     void baseInit();
 protected:
     void addColliderToOctTreeGrid(ST_Collider& collider, bool restructureTree);
@@ -73,10 +75,17 @@ struct scenePhysicsTest : Scene
     ST_SphereCollider* psc;
     ST_PlaneCollider* pGlitchyPlane;
     ST_RayTraceData rtd;
+    ST_IndexList viewColliders;
+    ST_Vector3 closestLights[4];
+    float closestLightDists[4];
+    int lightsGathered;
+    float maxLightDist;
+    int maxLightDistIndex;
     bool started = false;
     std::vector<ColliderModel> models;
     void update(float dt) override;
     void draw() override;
     void init() override;
     void mainDraw() override;
+    void lateUpdate() override;
 };

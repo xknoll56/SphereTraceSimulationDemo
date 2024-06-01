@@ -86,7 +86,7 @@ float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
     float3 halfVec = normalize(normalizedLightDir + viewDir);
     float diffuse = max(0.0f, dot(input.normal, normalizedLightDir)) * attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
-    float ambient = 0.3f;
+    float ambient = 0.3f*attenuation;
     return (diffuse * shadowFactor + ambient + specular * shadowFactor);
 }
 

@@ -703,13 +703,14 @@ void Renderer::ShadowRenderPass(const ShadowMap& map, int pass)
         pixelShaderConstantBuffer.cameraPos = sphereTraceVector4ConstructWithVector3(pScene->pBoundCamera->cameraPos, 1.0f);
         pScene->pBoundLightCamera->cameraSetViewMatrix();
     }
-    else if (pScene->pBoundLightCamera == &pointLightCamera)
-    {
+	else if (pScene->pBoundLightCamera == &pointLightCamera)
+	{
 
-        pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLights[pass].position;
-        pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLights[pass].position,
-            sphereTraceVector3Add(pixelShaderConstantBuffer.spotLights[pass].position, pixelShaderConstantBuffer.spotLights[pass].direction), gVector3Up);
-    }
+		pScene->pBoundLightCamera->cameraPos = pixelShaderConstantBuffer.spotLights[pass].position;
+		pScene->pBoundLightCamera->viewMatrix = sphereTraceMatrixLookAt(pixelShaderConstantBuffer.spotLights[pass].position,
+			sphereTraceVector3Add(pixelShaderConstantBuffer.spotLights[pass].position, pixelShaderConstantBuffer.spotLights[pass].direction), gVector3Right);
+
+	}
 
     pScene->pBoundLightCamera->cameraSetRightAndFwdVectors();
 
@@ -799,6 +800,8 @@ void Renderer::PopulateCommandList()
         m_commandList->ResourceBarrier(1, &resourceBarrier);
         resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(m_depthStencil.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_DEPTH_READ);
         m_commandList->ResourceBarrier(1, &resourceBarrier);
+
+        pScene->lateUpdate();
     }
 
 
@@ -1085,6 +1088,7 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
 
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
     m_constantBufferData.mvp = modelViewProjection;
+    m_constantBufferData.color = color;
     if (isShadowPass)
     {
         return;
@@ -1095,7 +1099,6 @@ void Renderer::drawLine(const ST_Vector3& from, const ST_Vector3& to, const ST_V
         m_commandList->SetPipelineState(mPipelineWireFrame.pPipelineState);
         m_commandList->SetGraphicsRootSignature(mRootSignitureWireFrame.pRootSigniture);
         cbaStack.updateBindAndIncrementCurrentAccessor(0, &m_constantBufferData.mvp, m_commandList.Get(), 0, m_frameIndex);
-        cbaStack.updateBindAndIncrementCurrentAccessor(1, (void*)&color, m_commandList.Get(), 1, m_frameIndex);
     }
     mLineVB.draw(m_commandList.Get());
 }
