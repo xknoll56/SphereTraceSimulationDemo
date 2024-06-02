@@ -23,7 +23,7 @@ cbuffer PixelShaderConstants : register(b1)
 {
     float4 cameraPos;
     float4 lightDir;
-    SpotLight spotLights[4];
+    SpotLight spotLights[15];
     int numSpotLights;
     int numShadowTextures;
 }
@@ -88,7 +88,7 @@ float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
     diffuse *= attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
     float theta = acos(dot(light.direction, (1.0f / dist) * (input.modelPos.xyz - light.position)));
-    float ambient = 0.05f;
+    float ambient = 0.03f;
     if(theta<3.14159f*0.333f)
         return (diffuse * shadowFactor + ambient + specular * shadowFactor);
     else
@@ -147,14 +147,14 @@ float4 PSMain(PSInput input) : SV_TARGET
     
     shadowFactor = 1.0f;
     if(numShadowTextures>1)
-        shadowFactor = calculateShadowFactor(input.lightSpacePos[1], shadowTexture1);
+        shadowFactor *= calculateShadowFactor(input.lightSpacePos[1], shadowTexture1);
 
     if(numSpotLights>1)
         overallLightValue += computeSpotlight(spotLights[1], input, shadowFactor);
     
     
     for (int i = 2; i < numSpotLights; i++)
-        overallLightValue += computeSpotlight(spotLights[i], input, 1.0f);
+        overallLightValue += computeSpotlight(spotLights[i], input, shadowFactor);
     
     
     overallLightValue = saturate(overallLightValue);

@@ -173,7 +173,7 @@ public:
     {
         ST_Vector4 cameraPos;
         ST_Vector4 lightDir;
-        SpotLight spotLights[4];
+        SpotLight spotLights[15];
         int numSpotLights;
         int numShadowTextures;
     };
