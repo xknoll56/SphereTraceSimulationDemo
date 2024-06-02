@@ -76,7 +76,7 @@ struct scenePhysicsTest : Scene
     ST_Vector3 testPos;
     ST_IndexList viewColliders;
     ST_IndexList lightColliders;
-    std::vector<ColliderModel> closestLights;
+    std::vector<ST_Collider*> closestLights;
     bool started = false;
     std::vector<ColliderModel> models;
     void update(float dt) override;

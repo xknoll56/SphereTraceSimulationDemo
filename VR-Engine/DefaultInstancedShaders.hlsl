@@ -80,7 +80,7 @@ SamplerComparisonState shadowSampler : register(s0);
 float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
 {
     float dist = length(light.position - input.modelPos.xyz);
-    float attenuation = 1.0 / (1.0f + (0.09f * dist) + (0.128 * 0.128 * dist * dist));
+    float attenuation = 1.0 / (1.0f + (0.02f * dist) + (0.01f * dist * dist));
     float3 viewDir = normalize(light.direction - input.position.xyz);
     float3 normalizedLightDir = normalize(-light.direction);
     float3 halfVec = normalize(normalizedLightDir + viewDir);
@@ -88,7 +88,7 @@ float computeSpotlight(SpotLight light, PSInput input, float shadowFactor)
     diffuse *= attenuation;
     float specular = pow(max(0.0f, dot(input.normal, halfVec)), 32) * attenuation;
     float theta = acos(dot(light.direction, (1.0f / dist) * (input.modelPos.xyz - light.position)));
-    float ambient = 0.03f;
+    float ambient = 0.01f;
     if(theta<3.14159f*0.333f)
         return (diffuse * shadowFactor + ambient + specular * shadowFactor);
     else
@@ -108,19 +108,34 @@ float computeDirectionalLight(PSInput input, float shadowFactor)
 
 float calculateShadowFactor(float4 lightSpacePos, Texture2D<float> shadowText)
 {
+    
+    uint width;
+    uint height;
+    shadowText.GetDimensions(width, height);
+    float2 texelSize = { 1.0f / width, 1.0f / height };
+    
     float2 shadowTexCoords;
     shadowTexCoords.x = 0.5f + (lightSpacePos.x / lightSpacePos.w * 0.5f);
     shadowTexCoords.y = 0.5f - (lightSpacePos.y / lightSpacePos.w * 0.5);
 
     float pixelDepth = lightSpacePos.z / lightSpacePos.w;
-    float epsilon = 0.00001f;
+    float epsilon = 0.0001f;
 
     float shadowFactor = 0.0f;
     if ((saturate(shadowTexCoords.x) == shadowTexCoords.x) &&
 			(saturate(shadowTexCoords.y) == shadowTexCoords.y) &&
 			(pixelDepth < 1.0f))
     {
-        shadowFactor = shadowText.SampleCmpLevelZero(shadowSampler, shadowTexCoords, pixelDepth - epsilon);
+        float sum = 0.0f;
+        for (int i = -1; i <= 1; i++)
+        {
+            for (int j = -1; j <= 1; j++)
+            {
+                float2 offsetTexCoords = shadowTexCoords + float2(i, j) * texelSize;
+                sum += shadowText.SampleCmpLevelZero(shadowSampler, offsetTexCoords, pixelDepth);
+            }
+        }
+        shadowFactor = sum / 9.0f; 
     }
     else
     {

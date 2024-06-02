@@ -240,10 +240,10 @@ void scenePhysicsTest::init()
 	sphereTraceSimulationOctTreeGridSolveDiscrete(&simSpace, 0.001f);
 }
 
-bool compareLightsByDistance(const ColliderModel pa, const ColliderModel pb)
+bool compareLightsByDistance(const ST_Collider* pa, const ST_Collider* pb)
 {
-	float da = sphereTraceVector3Distance(pa.pCollider->aabb.center, Renderer::instance.mainCamera.cameraPos);
-	float db = sphereTraceVector3Distance(pb.pCollider->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	float da = sphereTraceVector3Distance(pa->aabb.center, Renderer::instance.mainCamera.cameraPos);
+	float db = sphereTraceVector3Distance(pb->aabb.center, Renderer::instance.mainCamera.cameraPos);
 	return da < db;
 }
 
@@ -312,11 +312,28 @@ void scenePhysicsTest::update(float dt)
 			switch (model.pCollider->colliderType)
 			{
 			case COLLIDER_AABB:;
-				closestLights.push_back(model);
+				closestLights.push_back(model.pCollider);
 
 			}
 			pild = pild->pNext;
 		}
+
+		pild = viewColliders.pFirst;
+		for (int i = 0; i < viewColliders.count; i++)
+		{
+			pCollider = (ST_Collider*)pild->value;
+			model = *(ColliderModel*)pCollider->pWhatever;
+			switch (model.pCollider->colliderType)
+			{
+			case COLLIDER_AABB:
+				if (std::find(closestLights.begin(), closestLights.end(), model.pCollider) == closestLights.end())
+				closestLights.push_back(model.pCollider);
+
+			}
+			pild = pild->pNext;
+		}
+
+
 
 		std::sort(closestLights.begin(), closestLights.end(), compareLightsByDistance);
 
@@ -327,7 +344,7 @@ void scenePhysicsTest::update(float dt)
 
 		for (int i = 0; i < closestLights.size(); i++)
 		{
-			Renderer::instance.setSpotLight(closestLights[i].pCollider->aabb.center, gVector3Down, gVector3One, i);
+			Renderer::instance.setSpotLight(closestLights[i]->aabb.center, gVector3Down, gVector3One, i);
 		}
 	}
 }
