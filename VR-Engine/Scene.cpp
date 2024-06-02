@@ -190,7 +190,7 @@ void scenePhysicsTest::init()
 	Renderer::instance.pixelShaderConstantBuffer.numShadowTextures = 2;
 
 	Renderer::instance.mainCamera.cameraMovementSpeed = 22.0f;
-	Renderer::instance.mainCamera.cameraLerp = ST_VECTOR3(0, 400, 10);
+	Renderer::instance.mainCamera.cameraSetPosition(ST_VECTOR3(0, 350, 10));
 	simSpace = sphereTraceSimulationConstruct();
 	ST_SphereCollider* pSphere;
 	ST_PlaneCollider* pPlane;

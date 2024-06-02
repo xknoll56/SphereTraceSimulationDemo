@@ -96,6 +96,12 @@ typedef struct Camera
 		cameraSetViewMatrix();
 		cameraSetRightAndFwdVectors();
 	}
+
+	void cameraSetPosition(const ST_Vector3 pos)
+	{
+		cameraPos = pos;
+		cameraLerp = pos;
+	}
 } Camera;
 
 //Camera gMainCamera;
